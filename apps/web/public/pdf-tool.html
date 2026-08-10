@@ -1,0 +1,1339 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PDF-Werkzeug — Familientool</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+  :root {
+    --ink: #1c1917;
+    --paper: #faf9f7;
+    --line: #d6d3d1;
+    --accent: #2b5d5a;
+    --accent-soft: #e4efee;
+    --danger: #9a3324;
+    --mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --sans: 'IBM Plex Sans', -apple-system, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+    line-height: 1.5;
+  }
+  header {
+    padding: 1rem 1.5rem 0.75rem;
+    max-width: 780px;
+    margin: 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    flex-wrap: wrap;
+  }
+  .kicker {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0;
+  }
+  h1 {
+    font-size: 1.15rem;
+    margin: 0;
+    font-weight: 650;
+  }
+  .sub { display: none; }
+  main {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 1.5rem 4rem;
+  }
+  nav.tabs {
+    display: flex;
+    gap: 0.25rem;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 1.75rem;
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    background: none;
+    border: none;
+    padding: 0.7rem 1rem;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    font-weight: 550;
+    color: #78716c;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    white-space: nowrap;
+  }
+  nav.tabs button.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  section.panel { display: none; }
+  section.panel.active { display: block; animation: fade .2s ease; }
+  @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+
+  .dropzone {
+    border: 1.5px dashed var(--line);
+    border-radius: 10px;
+    padding: 1.1rem 1.25rem;
+    text-align: center;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  .dropzone:hover, .dropzone.drag { border-color: var(--accent); background: var(--accent-soft); }
+  .dropzone p { margin: 0.15rem 0; font-size: 0.8rem; color: #78716c; }
+  .dropzone .big { font-size: 0.92rem; color: var(--ink); font-weight: 550; margin: 0; }
+  input[type="file"] { display: none; }
+
+  ul.filelist {
+    list-style: none;
+    padding: 0;
+    margin: 1rem 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  ul.filelist li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.88rem;
+  }
+  ul.filelist li .name { font-weight: 550; }
+  ul.filelist li .meta { color: #78716c; font-size: 0.8rem; }
+  ul.filelist li .info { display: flex; align-items: center; gap: 0.7rem; min-width: 0; }
+  ul.filelist li canvas.thumb {
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    background: #fff;
+    flex-shrink: 0;
+    display: block;
+  }
+  ul.filelist li.reorder-item canvas.thumb { width: 46px; height: auto; }
+  ul.filelist li .thumb-wrap { position: relative; flex-shrink: 0; }
+  ul.filelist li .thumb-wrap img.thumb { transition: transform .15s ease; display: block; }
+  ul.filelist li .rotate-btn {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    padding: 0.15rem 0.45rem;
+    font-size: 0.85rem;
+    line-height: 1.4;
+  }
+  ul.filelist li .name-wrap { min-width: 0; }
+  ul.filelist li .name-wrap .name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px; }
+
+  .watermark-preview {
+    margin-top: 1rem;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    padding: 0.75rem;
+    display: flex;
+    justify-content: center;
+  }
+  .watermark-preview canvas { max-width: 100%; height: auto; border: 1px solid var(--line); }
+  .preview-label {
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #78716c;
+    margin: 1rem 0 0.4rem;
+  }
+
+  #reorder-bulk-tools { margin-top: 1rem; }
+  ul.filelist li input[type="checkbox"] { width: 1.05rem; height: 1.05rem; accent-color: var(--accent); flex-shrink: 0; }
+  ul.filelist li.deleted { opacity: 0.4; }
+  ul.filelist li.deleted .name::after { content: " (gelöscht)"; color: var(--danger); font-weight: 400; }
+
+  .tool-btn {
+    background: #fff;
+    border: 1px solid var(--line);
+    color: #57534e;
+    padding: 0.5rem 0.85rem;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 550;
+    cursor: pointer;
+  }
+  .tool-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .annotate-stage-wrap {
+    background: #ece9e5;
+    border-radius: 10px;
+    padding: 1rem;
+    overflow: auto;
+    max-height: 70vh;
+    display: flex;
+    justify-content: center;
+  }
+  .annotate-stage { position: relative; box-shadow: 0 10px 30px rgba(0,0,0,0.18); background: #fff; }
+  .annotate-stage canvas#annotate-base-canvas { display: block; }
+  .annotate-layer { position: absolute; inset: 0; cursor: crosshair; touch-action: none; }
+  .annotate-layer .anno-box {
+    position: absolute;
+    border: 2px solid var(--accent);
+    pointer-events: none;
+  }
+
+  /* ---------- Responsive / Smartphone ---------- */
+  @media (max-width: 640px) {
+    header { padding: 1.5rem 1rem 1rem; }
+    h1 { font-size: 1.4rem; }
+    .sub { font-size: 0.88rem; }
+    main { padding: 0 1rem 3rem; }
+
+    nav.tabs {
+      -webkit-overflow-scrolling: touch;
+      margin-bottom: 1.25rem;
+      padding-bottom: 2px;
+    }
+    nav.tabs button {
+      padding: 0.75rem 0.85rem;
+      font-size: 0.85rem;
+      min-height: 44px; /* Mindest-Tippfläche */
+    }
+
+    .dropzone { padding: 1.5rem 1rem; }
+    .dropzone .big { font-size: 0.92rem; }
+
+    .row { flex-direction: column; gap: 0.5rem; }
+    .row > * { flex: none; width: 100%; }
+
+    button.primary {
+      width: 100%;
+      min-height: 46px;
+      font-size: 0.95rem;
+    }
+
+    ul.filelist li {
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      padding: 0.65rem 0.7rem;
+    }
+    ul.filelist li .info { flex: 1 1 100%; }
+    ul.filelist li .name-wrap .name { max-width: 60vw; }
+    ul.filelist li .order-controls { flex: 1 1 100%; justify-content: flex-end; }
+    ul.filelist li .order-controls button,
+    ul.filelist li .rotate-btn {
+      min-height: 38px;
+      min-width: 38px;
+      font-size: 1rem;
+    }
+    ul.filelist li input[type="checkbox"] { width: 1.3rem; height: 1.3rem; }
+
+    #reorder-bulk-tools .row { gap: 0.5rem; }
+    #reorder-bulk-tools button.primary { min-height: 42px; }
+
+    .tool-btn { min-height: 42px; padding: 0.55rem 0.7rem; font-size: 0.82rem; flex: 1 1 auto; }
+    #annotate-toolbar { justify-content: stretch; }
+
+    .annotate-stage-wrap { padding: 0.6rem; max-height: 60vh; }
+    #annotate-page-info { font-size: 0.8rem; }
+    #annotate-prev, #annotate-next { min-height: 40px; padding: 0.5rem 0.7rem; }
+
+    .watermark-preview { padding: 0.5rem; }
+    .watermark-preview canvas { width: 100%; }
+
+    input[type="text"], input[type="number"], select, textarea {
+      font-size: 16px; /* verhindert automatisches Hineinzoomen von iOS bei Fokus */
+    }
+  }
+
+  @media (max-width: 380px) {
+    nav.tabs button { padding: 0.65rem 0.65rem; font-size: 0.78rem; }
+    h1 { font-size: 1.25rem; }
+  }
+
+  /* Grobe Zeigegeräte (Touch): etwas mehr Row-Höhe für Interaktionselemente */
+  @media (hover: none) and (pointer: coarse) {
+    .tab-btn { min-height: 44px; }
+    button.primary { min-height: 46px; }
+  }
+  ul.filelist li .actions button {
+    background: none;
+    border: none;
+    color: var(--danger);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0.2rem 0.4rem;
+  }
+  ul.filelist li .order-controls { display: flex; gap: 0.15rem; }
+  ul.filelist li .order-controls button {
+    background: var(--accent-soft);
+    color: var(--accent);
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+    padding: 0.15rem 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  label.field {
+    display: block;
+    font-size: 0.85rem;
+    font-weight: 550;
+    margin: 1rem 0 0.35rem;
+  }
+  input[type="text"], input[type="number"], select {
+    width: 100%;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    background: #fff;
+  }
+  .row { display: flex; gap: 0.75rem; }
+  .row > * { flex: 1; }
+
+  button.primary {
+    margin-top: 1.5rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 0.75rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.92rem;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  button.primary:disabled { opacity: 0.4; cursor: not-allowed; }
+  button.primary:hover:not(:disabled) { background: #1f4744; }
+
+  .status {
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    padding: 0.6rem 0.85rem;
+    border-radius: 7px;
+  }
+  .status.ok { background: var(--accent-soft); color: var(--accent); }
+  .status.err { background: #fbe9e5; color: var(--danger); }
+
+  .hint {
+    font-size: 0.8rem;
+    color: #78716c;
+    margin-top: 0.5rem;
+  }
+
+  footer {
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 1.5rem 2rem;
+    font-size: 0.78rem;
+    color: #a8a29e;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <p class="kicker">Familientool</p>
+  <h1>PDF-Werkzeug</h1>
+</header>
+
+<main>
+  <nav class="tabs">
+    <button class="tab-btn active" data-panel="merge">Zusammenführen</button>
+    <button class="tab-btn" data-panel="split">Trennen</button>
+    <button class="tab-btn" data-panel="watermark">Wasserzeichen</button>
+    <button class="tab-btn" data-panel="reorder">Seiten verwalten</button>
+    <button class="tab-btn" data-panel="annotate">Kommentieren</button>
+  </nav>
+
+  <!-- MERGE -->
+  <section class="panel active" id="panel-merge">
+    <div class="dropzone" id="drop-merge">
+      <p class="big">PDFs hierher ziehen oder klicken</p>
+      <p>Mehrere Dateien möglich — Reihenfolge unten anpassbar</p>
+    </div>
+    <input type="file" id="input-merge" accept="application/pdf" multiple>
+    <ul class="filelist" id="list-merge"></ul>
+    <button class="primary" id="btn-merge" disabled>PDFs zusammenführen &amp; herunterladen</button>
+    <div id="status-merge"></div>
+  </section>
+
+  <!-- SPLIT -->
+  <section class="panel" id="panel-split">
+    <div class="dropzone" id="drop-split">
+      <p class="big">Eine PDF hierher ziehen oder klicken</p>
+      <p>Wird in einzelne Seiten oder einen gewählten Bereich getrennt</p>
+    </div>
+    <input type="file" id="input-split" accept="application/pdf">
+    <ul class="filelist" id="list-split"></ul>
+
+    <label class="field">Modus</label>
+    <select id="split-mode">
+      <option value="all">Jede Seite als eigene PDF (ZIP)</option>
+      <option value="range">Nur einen Seitenbereich extrahieren</option>
+      <option value="ranges">Mehrere Bereiche auf einmal (je eine PDF, ZIP)</option>
+      <option value="blocks">In feste Blöcke aufteilen (ZIP)</option>
+    </select>
+    <div class="row" id="split-range-fields" style="display:none;">
+      <div>
+        <label class="field">Von Seite</label>
+        <input type="number" id="split-from" min="1" value="1">
+      </div>
+      <div>
+        <label class="field">Bis Seite</label>
+        <input type="number" id="split-to" min="1" value="1">
+      </div>
+    </div>
+    <div id="split-ranges-fields" style="display:none;">
+      <label class="field">Bereiche (eine Zeile pro Ergebnis-PDF)</label>
+      <textarea id="split-ranges-text" rows="4" placeholder="1-5&#10;6-10&#10;12&#10;15-20" style="width:100%;padding:0.55rem 0.7rem;border:1px solid var(--line);border-radius:7px;font-family:var(--sans);font-size:0.9rem;background:#fff;"></textarea>
+      <p class="hint">Jede Zeile ergibt eine eigene PDF, z. B. „1-5" oder eine einzelne Seitenzahl „12".</p>
+    </div>
+    <div id="split-blocks-fields" style="display:none;">
+      <label class="field">Blockgröße (Seiten pro Teil)</label>
+      <input type="number" id="split-block-size" min="1" value="10">
+    </div>
+    <button class="primary" id="btn-split" disabled>Trennen &amp; herunterladen</button>
+    <div id="status-split"></div>
+  </section>
+
+  <!-- WATERMARK -->
+  <section class="panel" id="panel-watermark">
+    <div class="dropzone" id="drop-watermark">
+      <p class="big">Eine PDF hierher ziehen oder klicken</p>
+      <p>Text-Wasserzeichen wird diagonal über jede Seite gelegt</p>
+    </div>
+    <input type="file" id="input-watermark" accept="application/pdf">
+    <ul class="filelist" id="list-watermark"></ul>
+
+    <label class="field">Wasserzeichen-Text</label>
+    <input type="text" id="watermark-text" placeholder="z. B. ENTWURF, VERTRAULICH, KOPIE" value="ENTWURF">
+    <div class="row">
+      <div>
+        <label class="field">Deckkraft</label>
+        <select id="watermark-opacity">
+          <option value="0.15">Sehr dezent</option>
+          <option value="0.25" selected>Dezent</option>
+          <option value="0.4">Deutlich</option>
+        </select>
+      </div>
+      <div>
+        <label class="field">Farbe</label>
+        <select id="watermark-color">
+          <option value="gray">Grau</option>
+          <option value="red">Rot</option>
+        </select>
+      </div>
+    </div>
+    <div class="row">
+      <div>
+        <label class="field">Position</label>
+        <select id="watermark-position">
+          <option value="top">Oben</option>
+          <option value="middle" selected>Mitte</option>
+          <option value="bottom">Unten</option>
+        </select>
+      </div>
+      <div>
+        <label class="field">Rotation (Grad)</label>
+        <input type="number" id="watermark-rotation" min="-90" max="90" value="45">
+      </div>
+    </div>
+    <p class="preview-label">Vorschau — erste Seite</p>
+    <div class="watermark-preview">
+      <canvas id="watermark-preview-canvas" width="260" height="360"></canvas>
+    </div>
+
+    <button class="primary" id="btn-watermark" disabled>Wasserzeichen einfügen &amp; herunterladen</button>
+    <div id="status-watermark"></div>
+  </section>
+
+  <!-- REORDER / PAGE MANAGEMENT -->
+  <section class="panel" id="panel-reorder">
+    <div class="dropzone" id="drop-reorder">
+      <p class="big">Eine PDF hierher ziehen oder klicken</p>
+      <p>Seiten werden geladen — sortieren, markieren, löschen, drehen</p>
+    </div>
+    <input type="file" id="input-reorder" accept="application/pdf">
+
+    <div id="reorder-bulk-tools" style="display:none;">
+      <label class="field">Bereich markieren</label>
+      <div class="row">
+        <input type="text" id="reorder-range-text" placeholder="z. B. 1-3,7,10-12">
+        <button class="primary" id="btn-reorder-mark" style="margin-top:0;padding:0.55rem 1rem;">Markieren</button>
+      </div>
+      <div class="row" style="margin-top:0.6rem;">
+        <button class="primary" id="btn-reorder-select-all" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.5rem 0.9rem;font-size:0.85rem;">Alle markieren</button>
+        <button class="primary" id="btn-reorder-select-none" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.5rem 0.9rem;font-size:0.85rem;">Markierung aufheben</button>
+        <button class="primary" id="btn-reorder-reverse" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.5rem 0.9rem;font-size:0.85rem;">Reihenfolge umkehren</button>
+      </div>
+      <div class="row" style="margin-top:0.6rem;">
+        <button class="primary" id="btn-reorder-delete-marked" style="margin-top:0;background:#fbe9e5;color:var(--danger);padding:0.5rem 0.9rem;font-size:0.85rem;">Markierte löschen</button>
+        <button class="primary" id="btn-reorder-restore" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.5rem 0.9rem;font-size:0.85rem;">Gelöschte wiederherstellen</button>
+      </div>
+    </div>
+
+    <ul class="filelist" id="list-reorder"></ul>
+    <p class="hint" id="reorder-hint" style="display:none;">Kontrollkästchen markiert eine Seite (für Massenaktionen), ⟳ dreht sie um 90°, Pfeile verschieben sie, „✕" entfernt sie einzeln.</p>
+    <button class="primary" id="btn-reorder" disabled>Ergebnis-PDF herunterladen</button>
+    <div id="status-reorder"></div>
+  </section>
+
+  <!-- ANNOTATE -->
+  <section class="panel" id="panel-annotate">
+    <div class="dropzone" id="drop-annotate">
+      <p class="big">Eine PDF hierher ziehen oder klicken</p>
+      <p>Text, Marker, Formen, Pfeile als neue Ebene</p>
+    </div>
+    <input type="file" id="input-annotate" accept="application/pdf">
+
+    <div id="annotate-workspace" style="display:none;">
+      <div class="row" style="align-items:center;margin:1rem 0 0.75rem;">
+        <button class="primary" id="annotate-prev" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.4rem 0.8rem;">‹ Vorherige</button>
+        <span id="annotate-page-info" style="text-align:center;font-size:0.85rem;font-weight:600;align-self:center;">Seite 1 / 1</span>
+        <button class="primary" id="annotate-next" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.4rem 0.8rem;">Nächste ›</button>
+      </div>
+
+      <div class="row" style="flex-wrap:wrap;gap:0.4rem;margin-bottom:0.75rem;" id="annotate-toolbar">
+        <button class="tool-btn active" data-tool="select">Auswahl</button>
+        <button class="tool-btn" data-tool="text">Text</button>
+        <button class="tool-btn" data-tool="highlight">Marker</button>
+        <button class="tool-btn" data-tool="rect">Rechteck</button>
+        <button class="tool-btn" data-tool="ellipse">Ellipse</button>
+        <button class="tool-btn" data-tool="arrow">Pfeil</button>
+        <button class="tool-btn" data-tool="image">Bild/Stempel</button>
+      </div>
+      <input type="file" id="annotate-image-input" accept="image/png,image/jpeg" style="display:none;">
+
+      <div class="row">
+        <div>
+          <label class="field">Farbe</label>
+          <input type="color" id="annotate-color" value="#2b5d5a" style="height:2.4rem;padding:0.2rem;">
+        </div>
+        <div>
+          <label class="field">Größe / Stärke</label>
+          <input type="number" id="annotate-size" min="6" max="120" value="20">
+        </div>
+        <div>
+          <label class="field">Deckkraft</label>
+          <select id="annotate-opacity">
+            <option value="0.4">Dezent</option>
+            <option value="0.7" selected>Normal</option>
+            <option value="1">Deckend</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="annotate-stage-wrap">
+        <div class="annotate-stage" id="annotate-stage">
+          <canvas id="annotate-base-canvas"></canvas>
+          <div class="annotate-layer" id="annotate-layer"></div>
+        </div>
+      </div>
+
+      <div class="row" style="margin-top:0.75rem;">
+        <button class="primary" id="btn-annotate-undo" style="margin-top:0;background:var(--accent-soft);color:var(--accent);padding:0.5rem 0.9rem;font-size:0.85rem;">Letztes rückgängig</button>
+        <button class="primary" id="btn-annotate-clear" style="margin-top:0;background:#fbe9e5;color:var(--danger);padding:0.5rem 0.9rem;font-size:0.85rem;">Seite leeren</button>
+      </div>
+      <button class="primary" id="btn-annotate-export">Kommentierte PDF herunterladen</button>
+      <div id="status-annotate"></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  Alle Verarbeitung findet lokal im Browser statt (pdf-lib). Es werden keine Dateien an einen Server übertragen.
+</footer>
+
+<script>
+const { PDFDocument, rgb, degrees, StandardFonts } = PDFLib;
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+// Rendert eine Seite (1-indiziert) einer PDF (als ArrayBuffer) und gibt eine Daten-URL (PNG) zurück.
+// Daten-URLs statt Canvas-Referenzen, weil Canvas-Elemente sich nicht per cloneNode duplizieren
+// lassen (das kopiert nicht den gezeichneten Bildinhalt) — <img src="..."> ist robuster für Listen,
+// die mehrfach neu gerendert werden (z. B. bei Reihenfolge-Änderungen).
+async function renderPageThumbDataUrl(arrayBuffer, pageNumber, targetWidth = 90) {
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer.slice(0) });
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(pageNumber);
+  const baseViewport = page.getViewport({ scale: 1 });
+  const scale = targetWidth / baseViewport.width;
+  const viewport = page.getViewport({ scale });
+  const canvas = document.createElement('canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+  return canvas.toDataURL('image/png');
+}
+// Cache: Datei -> { buf, pdf-Objekt-Promise, Seiten-Thumbnails als Daten-URL }
+const fileThumbCache = new WeakMap();
+async function getPdfBufferCached(file) {
+  if (!fileThumbCache.has(file)) fileThumbCache.set(file, { bufPromise: file.arrayBuffer(), pages: new Map() });
+  return fileThumbCache.get(file);
+}
+async function getPageThumbDataUrl(file, pageNumber, width = 70) {
+  const entry = await getPdfBufferCached(file);
+  const cacheKey = pageNumber + '@' + width;
+  if (entry.pages.has(cacheKey)) return entry.pages.get(cacheKey);
+  const buf = await entry.bufPromise;
+  const dataUrl = await renderPageThumbDataUrl(buf, pageNumber, width);
+  entry.pages.set(cacheKey, dataUrl);
+  return dataUrl;
+}
+
+// ---------- Tab-Handling ----------
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+  });
+});
+
+// ---------- Helpers ----------
+function setStatus(id, msg, ok = true) {
+  const el = document.getElementById(id);
+  el.innerHTML = `<div class="status ${ok ? 'ok' : 'err'}">${msg}</div>`;
+}
+function clearStatus(id) { document.getElementById(id).innerHTML = ''; }
+function download(bytes, filename, type = 'application/pdf') {
+  const blob = new Blob([bytes], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function fmtSize(bytes) {
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(0) + ' KB';
+  return (bytes/1024/1024).toFixed(1) + ' MB';
+}
+function setupDropzone(zoneId, inputId, onFiles) {
+  const zone = document.getElementById(zoneId);
+  const input = document.getElementById(inputId);
+  zone.addEventListener('click', () => input.click());
+  input.addEventListener('change', () => onFiles(Array.from(input.files)));
+  zone.addEventListener('dragover', e => { e.preventDefault(); zone.classList.add('drag'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('drag'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('drag');
+    onFiles(Array.from(e.dataTransfer.files).filter(f => f.type === 'application/pdf'));
+  });
+}
+
+// ---------- MERGE ----------
+let mergeFiles = [];
+setupDropzone('drop-merge', 'input-merge', files => {
+  mergeFiles.push(...files);
+  renderMergeList();
+});
+function renderMergeList() {
+  const list = document.getElementById('list-merge');
+  list.innerHTML = '';
+  mergeFiles.forEach((f, i) => {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="info">
+        <img class="thumb" width="46" alt="" style="border:1px solid var(--line);border-radius:4px;background:#fff;">
+        <div class="name-wrap">
+          <div class="name">${f.name}</div>
+          <div class="meta">${fmtSize(f.size)}</div>
+        </div>
+      </div>
+      <div class="order-controls">
+        <button data-dir="up" ${i===0?'disabled':''}>↑</button>
+        <button data-dir="down" ${i===mergeFiles.length-1?'disabled':''}>↓</button>
+        <span class="actions"><button data-remove>✕</button></span>
+      </div>`;
+    li.querySelector('[data-dir="up"]')?.addEventListener('click', () => { [mergeFiles[i-1], mergeFiles[i]] = [mergeFiles[i], mergeFiles[i-1]]; renderMergeList(); });
+    li.querySelector('[data-dir="down"]')?.addEventListener('click', () => { [mergeFiles[i+1], mergeFiles[i]] = [mergeFiles[i], mergeFiles[i+1]]; renderMergeList(); });
+    li.querySelector('[data-remove]').addEventListener('click', () => { mergeFiles.splice(i,1); renderMergeList(); });
+    list.appendChild(li);
+
+    getPageThumbDataUrl(f, 1, 46).then(url => {
+      const img = li.querySelector('img.thumb');
+      if (img) img.src = url;
+    }).catch(() => {});
+  });
+  document.getElementById('btn-merge').disabled = mergeFiles.length < 2;
+  clearStatus('status-merge');
+}
+document.getElementById('btn-merge').addEventListener('click', async () => {
+  try {
+    setStatus('status-merge', 'Führe zusammen …');
+    const outDoc = await PDFDocument.create();
+    for (const file of mergeFiles) {
+      const bytes = await file.arrayBuffer();
+      const src = await PDFDocument.load(bytes);
+      const pages = await outDoc.copyPages(src, src.getPageIndices());
+      pages.forEach(p => outDoc.addPage(p));
+    }
+    const bytes = await outDoc.save();
+    download(bytes, 'zusammengefuehrt.pdf');
+    setStatus('status-merge', `Fertig — ${mergeFiles.length} Dateien zusammengeführt.`);
+  } catch (e) {
+    setStatus('status-merge', 'Fehler: ' + e.message, false);
+  }
+});
+
+// ---------- SPLIT ----------
+let splitFile = null;
+setupDropzone('drop-split', 'input-split', async files => {
+  if (!files[0]) return;
+  splitFile = files[0];
+  document.getElementById('list-split').innerHTML =
+    `<li><div class="info">
+        <img class="thumb" width="46" alt="" style="border:1px solid var(--line);border-radius:4px;background:#fff;">
+        <div class="name-wrap">
+          <div class="name">${splitFile.name}</div>
+          <div class="meta">${fmtSize(splitFile.size)} · lädt Seitenzahl …</div>
+        </div>
+      </div></li>`;
+  document.getElementById('btn-split').disabled = false;
+  clearStatus('status-split');
+
+  const buf = await splitFile.arrayBuffer();
+  const doc = await PDFDocument.load(buf);
+  const total = doc.getPageCount();
+  document.querySelector('#list-split .meta').textContent = `${fmtSize(splitFile.size)} · ${total} Seiten`;
+  document.getElementById('split-from').max = total;
+  document.getElementById('split-to').max = total;
+  document.getElementById('split-to').value = total;
+
+  getPageThumbDataUrl(splitFile, 1, 46).then(url => {
+    const img = document.querySelector('#list-split img.thumb');
+    if (img) img.src = url;
+  }).catch(() => {});
+});
+// Parst Eingaben wie "1-5,7,10-12" in eine sortierte, deduplizierte Liste von 0-indizierten Seiten
+function parsePageRanges(text, maxPage) {
+  const out = new Set();
+  (text || '').split(/[\n,;]+/).map(s => s.trim()).filter(Boolean).forEach(part => {
+    const rangeMatch = part.match(/^(\d+)\s*-\s*(\d+)$/);
+    const singleMatch = part.match(/^\d+$/);
+    if (rangeMatch) {
+      let a = parseInt(rangeMatch[1]), b = parseInt(rangeMatch[2]);
+      if (a > b) [a, b] = [b, a];
+      for (let i = a; i <= b; i++) if (i >= 1 && i <= maxPage) out.add(i - 1);
+    } else if (singleMatch) {
+      const i = parseInt(part);
+      if (i >= 1 && i <= maxPage) out.add(i - 1);
+    }
+  });
+  return [...out].sort((a, b) => a - b);
+}
+
+document.getElementById('split-mode').addEventListener('change', e => {
+  const mode = e.target.value;
+  document.getElementById('split-range-fields').style.display = mode === 'range' ? 'flex' : 'none';
+  document.getElementById('split-ranges-fields').style.display = mode === 'ranges' ? 'block' : 'none';
+  document.getElementById('split-blocks-fields').style.display = mode === 'blocks' ? 'block' : 'none';
+});
+document.getElementById('btn-split').addEventListener('click', async () => {
+  try {
+    setStatus('status-split', 'Trenne …');
+    const bytes = await splitFile.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    const total = src.getPageCount();
+    const mode = document.getElementById('split-mode').value;
+    const baseName = (splitFile.name || 'dokument.pdf').replace(/\.pdf$/i, '');
+
+    async function extractPages(indices) {
+      const outDoc = await PDFDocument.create();
+      const pages = await outDoc.copyPages(src, indices);
+      pages.forEach(p => outDoc.addPage(p));
+      return outDoc.save();
+    }
+
+    if (mode === 'range') {
+      let from = parseInt(document.getElementById('split-from').value) - 1;
+      let to = parseInt(document.getElementById('split-to').value) - 1;
+      from = Math.max(0, from); to = Math.min(total - 1, to);
+      if (from > to) throw new Error('„Von" muss kleiner oder gleich „Bis" sein.');
+      const indices = []; for (let i = from; i <= to; i++) indices.push(i);
+      download(await extractPages(indices), `${baseName}-seiten-${from+1}-${to+1}.pdf`);
+      setStatus('status-split', `Fertig — Seiten ${from+1}–${to+1} extrahiert.`);
+
+    } else if (mode === 'ranges') {
+      const lines = document.getElementById('split-ranges-text').value.split(/\n+/).map(l => l.trim()).filter(Boolean);
+      if (!lines.length) throw new Error('Bitte mindestens einen Bereich angeben.');
+      const files = [];
+      for (let i = 0; i < lines.length; i++) {
+        const indices = parsePageRanges(lines[i], total);
+        if (!indices.length) continue;
+        const data = await extractPages(indices);
+        files.push({ name: `${baseName}-bereich-${i+1}.pdf`, data });
+      }
+      if (!files.length) throw new Error('Keine gültigen Seiten in den angegebenen Bereichen gefunden.');
+      download(buildZip(files), `${baseName}-bereiche.zip`, 'application/zip');
+      setStatus('status-split', `Fertig — ${files.length} Bereiche als ZIP heruntergeladen.`);
+
+    } else if (mode === 'blocks') {
+      const blockSize = Math.max(1, parseInt(document.getElementById('split-block-size').value) || 10);
+      const files = [];
+      for (let start = 0; start < total; start += blockSize) {
+        const indices = [];
+        for (let i = start; i < Math.min(total, start + blockSize); i++) indices.push(i);
+        const data = await extractPages(indices);
+        files.push({ name: `${baseName}-teil-${String(files.length + 1).padStart(2, '0')}.pdf`, data });
+      }
+      download(buildZip(files), `${baseName}-bloecke.zip`, 'application/zip');
+      setStatus('status-split', `Fertig — in ${files.length} Blöcke à max. ${blockSize} Seiten aufgeteilt.`);
+
+    } else {
+      // Jede Seite einzeln, als ZIP über einfache JS-Zip-Implementierung
+      const files = [];
+      for (let i = 0; i < total; i++) {
+        const data = await extractPages([i]);
+        files.push({ name: `seite-${i+1}.pdf`, data });
+      }
+      download(buildZip(files), 'seiten.zip', 'application/zip');
+      setStatus('status-split', `Fertig — ${total} Einzelseiten als ZIP heruntergeladen.`);
+    }
+  } catch (e) {
+    setStatus('status-split', 'Fehler: ' + e.message, false);
+  }
+});
+
+// Minimaler ZIP-Builder (store, keine Kompression) — kein CDN-Abhängigkeit nötig
+function buildZip(files) {
+  const encoder = new TextEncoder();
+  let localParts = [], centralParts = [], offset = 0;
+  function crc32(buf) {
+    let c, crcTable = crc32.table || (crc32.table = (() => {
+      const t = [];
+      for (let n = 0; n < 256; n++) {
+        c = n;
+        for (let k = 0; k < 8; k++) c = c & 1 ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
+        t[n] = c;
+      }
+      return t;
+    })());
+    let crc = 0 ^ (-1);
+    for (let i = 0; i < buf.length; i++) crc = (crc >>> 8) ^ crcTable[(crc ^ buf[i]) & 0xFF];
+    return (crc ^ (-1)) >>> 0;
+  }
+  files.forEach(f => {
+    const nameBytes = encoder.encode(f.name);
+    const data = f.data;
+    const crc = crc32(data);
+    const size = data.length;
+
+    const localHeader = new DataView(new ArrayBuffer(30));
+    localHeader.setUint32(0, 0x04034b50, true);
+    localHeader.setUint16(4, 20, true);
+    localHeader.setUint16(6, 0, true);
+    localHeader.setUint16(8, 0, true);
+    localHeader.setUint16(10, 0, true);
+    localHeader.setUint16(12, 0, true);
+    localHeader.setUint32(14, crc, true);
+    localHeader.setUint32(18, size, true);
+    localHeader.setUint32(22, size, true);
+    localHeader.setUint16(26, nameBytes.length, true);
+    localHeader.setUint16(28, 0, true);
+
+    localParts.push(new Uint8Array(localHeader.buffer), nameBytes, data);
+
+    const centralHeader = new DataView(new ArrayBuffer(46));
+    centralHeader.setUint32(0, 0x02014b50, true);
+    centralHeader.setUint16(4, 20, true);
+    centralHeader.setUint16(6, 20, true);
+    centralHeader.setUint16(8, 0, true);
+    centralHeader.setUint16(10, 0, true);
+    centralHeader.setUint16(12, 0, true);
+    centralHeader.setUint16(14, 0, true);
+    centralHeader.setUint32(16, crc, true);
+    centralHeader.setUint32(20, size, true);
+    centralHeader.setUint32(24, size, true);
+    centralHeader.setUint16(28, nameBytes.length, true);
+    centralHeader.setUint16(30, 0, true);
+    centralHeader.setUint16(32, 0, true);
+    centralHeader.setUint16(34, 0, true);
+    centralHeader.setUint16(36, 0, true);
+    centralHeader.setUint32(38, 0, true);
+    centralHeader.setUint32(42, offset, true);
+
+    centralParts.push(new Uint8Array(centralHeader.buffer), nameBytes);
+    offset += 30 + nameBytes.length + size;
+  });
+
+  const centralSize = centralParts.reduce((s, p) => s + p.length, 0);
+  const localSize = localParts.reduce((s, p) => s + p.length, 0);
+  const end = new DataView(new ArrayBuffer(22));
+  end.setUint32(0, 0x06054b50, true);
+  end.setUint16(4, 0, true);
+  end.setUint16(6, 0, true);
+  end.setUint16(8, files.length, true);
+  end.setUint16(10, files.length, true);
+  end.setUint32(12, centralSize, true);
+  end.setUint32(16, localSize, true);
+  end.setUint16(20, 0, true);
+
+  const total = new Uint8Array(localSize + centralSize + 22);
+  let pos = 0;
+  [...localParts, ...centralParts, new Uint8Array(end.buffer)].forEach(part => {
+    total.set(part, pos); pos += part.length;
+  });
+  return total;
+}
+
+// ---------- WATERMARK ----------
+let watermarkFile = null;
+let watermarkBaseImage = null; // Image-Objekt der gerenderten ersten Seite, für schnelles Neuzeichnen der Vorschau
+
+setupDropzone('drop-watermark', 'input-watermark', async files => {
+  if (!files[0]) return;
+  watermarkFile = files[0];
+  document.getElementById('list-watermark').innerHTML =
+    `<li><div><div class="name">${watermarkFile.name}</div><div class="meta">${fmtSize(watermarkFile.size)}</div></div></li>`;
+  document.getElementById('btn-watermark').disabled = false;
+  clearStatus('status-watermark');
+
+  const dataUrl = await getPageThumbDataUrl(watermarkFile, 1, 520);
+  watermarkBaseImage = new Image();
+  watermarkBaseImage.onload = drawWatermarkPreview;
+  watermarkBaseImage.src = dataUrl;
+});
+
+function drawWatermarkPreview() {
+  if (!watermarkBaseImage) return;
+  const canvas = document.getElementById('watermark-preview-canvas');
+  canvas.width = watermarkBaseImage.width;
+  canvas.height = watermarkBaseImage.height;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(watermarkBaseImage, 0, 0);
+
+  const text = document.getElementById('watermark-text').value || 'ENTWURF';
+  const opacity = parseFloat(document.getElementById('watermark-opacity').value);
+  const colorName = document.getElementById('watermark-color').value;
+  const color = colorName === 'red' ? `rgba(153,38,26,${opacity})` : `rgba(128,128,128,${opacity})`;
+  const position = document.getElementById('watermark-position').value;
+  const rotation = parseFloat(document.getElementById('watermark-rotation').value) || 0;
+
+  const posY = position === 'top' ? canvas.height * 0.18 : position === 'bottom' ? canvas.height * 0.82 : canvas.height / 2;
+
+  ctx.save();
+  ctx.translate(canvas.width / 2, posY);
+  ctx.rotate(-rotation * Math.PI / 180);
+  ctx.fillStyle = color;
+  const fontSize = Math.min(canvas.width, canvas.height) / 7;
+  ctx.font = `bold ${fontSize}px sans-serif`;
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(text, 0, 0);
+  ctx.restore();
+}
+['watermark-text', 'watermark-opacity', 'watermark-color', 'watermark-position', 'watermark-rotation'].forEach(id => {
+  document.getElementById(id).addEventListener('input', drawWatermarkPreview);
+});
+document.getElementById('btn-watermark').addEventListener('click', async () => {
+  try {
+    setStatus('status-watermark', 'Füge Wasserzeichen ein …');
+    const text = document.getElementById('watermark-text').value || 'ENTWURF';
+    const opacity = parseFloat(document.getElementById('watermark-opacity').value);
+    const colorName = document.getElementById('watermark-color').value;
+    const color = colorName === 'red' ? rgb(0.6, 0.15, 0.1) : rgb(0.5, 0.5, 0.5);
+    const position = document.getElementById('watermark-position').value;
+    const rotation = parseFloat(document.getElementById('watermark-rotation').value) || 0;
+
+    const bytes = await watermarkFile.arrayBuffer();
+    const doc = await PDFDocument.load(bytes);
+    const font = await doc.embedFont(StandardFonts.HelveticaBold);
+    const pages = doc.getPages();
+    pages.forEach(page => {
+      const { width, height } = page.getSize();
+      const fontSize = Math.min(width, height) / 8;
+      const y = position === 'top' ? height * 0.85 : position === 'bottom' ? height * 0.1 : height / 2;
+      page.drawText(text, {
+        x: width / 2 - (text.length * fontSize) / 4,
+        y,
+        size: fontSize,
+        font,
+        color,
+        opacity,
+        rotate: degrees(rotation),
+      });
+    });
+    download(await doc.save(), 'wasserzeichen.pdf');
+    setStatus('status-watermark', 'Fertig — Wasserzeichen eingefügt.');
+  } catch (e) {
+    setStatus('status-watermark', 'Fehler: ' + e.message, false);
+  }
+});
+
+// ---------- REORDER / SEITEN VERWALTEN ----------
+let reorderFile = null;
+let reorderPages = []; // Array von { index, rotation: 0|90|180|270, marked: bool, deleted: bool }
+
+setupDropzone('drop-reorder', 'input-reorder', async files => {
+  if (!files[0]) return;
+  reorderFile = files[0];
+  const bytes = await reorderFile.arrayBuffer();
+  const doc = await PDFDocument.load(bytes);
+  reorderPages = doc.getPageIndices().map(i => ({ index: i, rotation: 0, marked: false, deleted: false }));
+  renderReorderList();
+  document.getElementById('reorder-hint').style.display = 'block';
+  document.getElementById('reorder-bulk-tools').style.display = 'block';
+  document.getElementById('btn-reorder').disabled = false;
+  clearStatus('status-reorder');
+});
+
+function renderReorderList() {
+  const list = document.getElementById('list-reorder');
+  list.innerHTML = '';
+  reorderPages.forEach((p, i) => {
+    const li = document.createElement('li');
+    li.className = 'reorder-item' + (p.deleted ? ' deleted' : '');
+    li.innerHTML = `
+      <div class="info">
+        <input type="checkbox" ${p.marked ? 'checked' : ''} title="Für Massenaktion markieren">
+        <div class="thumb-wrap">
+          <img class="thumb" width="46" alt="" style="border:1px solid var(--line);border-radius:4px;background:#fff;transform:rotate(${p.rotation}deg);">
+        </div>
+        <div class="name-wrap">
+          <div class="name">Seite ${p.index + 1}</div>
+          <div class="meta">Position ${i+1}${p.rotation ? ' · ' + p.rotation + '°' : ''}</div>
+        </div>
+      </div>
+      <div class="order-controls">
+        <button class="rotate-btn" data-rotate title="Um 90° drehen">⟳</button>
+        <button data-dir="up" ${i===0?'disabled':''}>↑</button>
+        <button data-dir="down" ${i===reorderPages.length-1?'disabled':''}>↓</button>
+        <span class="actions"><button data-remove title="Diese Seite einzeln löschen">✕</button></span>
+      </div>`;
+    li.querySelector('input[type="checkbox"]').addEventListener('change', e => { p.marked = e.target.checked; });
+    li.querySelector('[data-rotate]').addEventListener('click', () => { p.rotation = (p.rotation + 90) % 360; renderReorderList(); });
+    li.querySelector('[data-dir="up"]')?.addEventListener('click', () => { [reorderPages[i-1], reorderPages[i]] = [reorderPages[i], reorderPages[i-1]]; renderReorderList(); });
+    li.querySelector('[data-dir="down"]')?.addEventListener('click', () => { [reorderPages[i+1], reorderPages[i]] = [reorderPages[i], reorderPages[i+1]]; renderReorderList(); });
+    li.querySelector('[data-remove]').addEventListener('click', () => { p.deleted = true; renderReorderList(); });
+    list.appendChild(li);
+
+    getPageThumbDataUrl(reorderFile, p.index + 1, 46).then(url => {
+      const img = li.querySelector('img.thumb');
+      if (img) img.src = url;
+    }).catch(() => {});
+  });
+  const activeCount = reorderPages.filter(p => !p.deleted).length;
+  document.getElementById('btn-reorder').disabled = activeCount === 0;
+}
+
+document.getElementById('btn-reorder-mark').addEventListener('click', () => {
+  const total = reorderPages.length;
+  const targetIndices = new Set(parsePageRanges(document.getElementById('reorder-range-text').value, total)); // 0-indiziert nach Position in der Liste
+  reorderPages.forEach((p, i) => { if (targetIndices.has(i)) p.marked = true; });
+  renderReorderList();
+});
+document.getElementById('btn-reorder-select-all').addEventListener('click', () => {
+  reorderPages.forEach(p => { if (!p.deleted) p.marked = true; });
+  renderReorderList();
+});
+document.getElementById('btn-reorder-select-none').addEventListener('click', () => {
+  reorderPages.forEach(p => p.marked = false);
+  renderReorderList();
+});
+document.getElementById('btn-reorder-reverse').addEventListener('click', () => {
+  reorderPages.reverse();
+  renderReorderList();
+});
+document.getElementById('btn-reorder-delete-marked').addEventListener('click', () => {
+  reorderPages.forEach(p => { if (p.marked) { p.deleted = true; p.marked = false; } });
+  renderReorderList();
+});
+document.getElementById('btn-reorder-restore').addEventListener('click', () => {
+  reorderPages.forEach(p => p.deleted = false);
+  renderReorderList();
+});
+
+document.getElementById('btn-reorder').addEventListener('click', async () => {
+  try {
+    setStatus('status-reorder', 'Erzeuge Ergebnis-PDF …');
+    const active = reorderPages.filter(p => !p.deleted);
+    if (!active.length) throw new Error('Alle Seiten sind gelöscht — nichts zum Exportieren.');
+    const bytes = await reorderFile.arrayBuffer();
+    const src = await PDFDocument.load(bytes);
+    const outDoc = await PDFDocument.create();
+    const indices = active.map(p => p.index);
+    const pages = await outDoc.copyPages(src, indices);
+    pages.forEach((page, i) => {
+      const rotation = active[i].rotation;
+      if (rotation) {
+        const current = page.getRotation().angle || 0;
+        page.setRotation(degrees((current + rotation) % 360));
+      }
+      outDoc.addPage(page);
+    });
+    download(await outDoc.save(), 'seiten-verwaltet.pdf');
+    setStatus('status-reorder', `Fertig — ${active.length} Seiten im Ergebnis${active.some(p=>p.rotation) ? ', inkl. Drehung' : ''}.`);
+  } catch (e) {
+    setStatus('status-reorder', 'Fehler: ' + e.message, false);
+  }
+});
+
+// ---------- KOMMENTIEREN (Anmerkungen als neue Ebene über der Seite) ----------
+let annotateFile = null;
+let annotatePdf = null;          // pdf.js-Dokument, zum Rendern der Seiten
+let annotatePageCount = 0;
+let annotateCurrentPage = 0;     // 0-indiziert
+let annotateScale = 1;
+let annotatePageSize = { width: 0, height: 0 }; // in PDF-Punkten, unskaliert
+let annotationsByPage = {};      // Seitenindex -> Array von Anmerkungs-Objekten
+let annotateTool = 'select';
+let annotateImageData = null;    // { dataUrl, mime } für Bild-Stempel
+let annotateDragState = null;
+
+function hexToRgbColor(hex) {
+  hex = hex.replace('#', '');
+  return rgb(parseInt(hex.slice(0,2),16)/255, parseInt(hex.slice(2,4),16)/255, parseInt(hex.slice(4,6),16)/255);
+}
+function currentPageAnnotations() {
+  if (!annotationsByPage[annotateCurrentPage]) annotationsByPage[annotateCurrentPage] = [];
+  return annotationsByPage[annotateCurrentPage];
+}
+function pdfToCanvasPoint(pt) { return { x: pt.x * annotateScale, y: (annotatePageSize.height - pt.y) * annotateScale }; }
+function canvasToPdfPoint(pt) { return { x: pt.x / annotateScale, y: annotatePageSize.height - pt.y / annotateScale }; }
+
+setupDropzone('drop-annotate', 'input-annotate', async files => {
+  if (!files[0]) return;
+  annotateFile = files[0];
+  const buf = await annotateFile.arrayBuffer();
+  annotatePdf = await pdfjsLib.getDocument({ data: buf.slice(0) }).promise;
+  annotatePageCount = annotatePdf.numPages;
+  annotateCurrentPage = 0;
+  annotationsByPage = {};
+  document.getElementById('annotate-workspace').style.display = 'block';
+  clearStatus('status-annotate');
+  await renderAnnotatePage();
+});
+
+async function renderAnnotatePage() {
+  const page = await annotatePdf.getPage(annotateCurrentPage + 1);
+  const baseViewport = page.getViewport({ scale: 1 });
+  annotatePageSize = { width: baseViewport.width, height: baseViewport.height };
+  const wrapWidth = document.querySelector('.annotate-stage-wrap').clientWidth - 32 || 600;
+  annotateScale = Math.min(1.4, Math.max(0.4, wrapWidth / baseViewport.width));
+  const viewport = page.getViewport({ scale: annotateScale });
+
+  const canvas = document.getElementById('annotate-base-canvas');
+  canvas.width = viewport.width;
+  canvas.height = viewport.height;
+  const ctx = canvas.getContext('2d');
+  await page.render({ canvasContext: ctx, viewport }).promise;
+
+  const layer = document.getElementById('annotate-layer');
+  layer.style.width = viewport.width + 'px';
+  layer.style.height = viewport.height + 'px';
+
+  document.getElementById('annotate-page-info').textContent = `Seite ${annotateCurrentPage + 1} / ${annotatePageCount}`;
+  document.getElementById('annotate-prev').disabled = annotateCurrentPage === 0;
+  document.getElementById('annotate-next').disabled = annotateCurrentPage === annotatePageCount - 1;
+  drawAnnotationOverlay();
+}
+
+function drawAnnotationOverlay() {
+  const layer = document.getElementById('annotate-layer');
+  layer.innerHTML = '';
+  currentPageAnnotations().forEach((a, idx) => {
+    if (a.type === 'text') {
+      const p = pdfToCanvasPoint({ x: a.x, y: a.y });
+      const div = document.createElement('div');
+      div.className = 'anno-box';
+      div.style.cssText = `left:${p.x}px;top:${p.y - a.size*annotateScale}px;border:none;color:${a.color};font-weight:700;font-size:${a.size*annotateScale}px;white-space:pre;`;
+      div.textContent = a.text;
+      layer.appendChild(div);
+    } else if (a.type === 'rect' || a.type === 'highlight' || a.type === 'ellipse') {
+      const x = a.x * annotateScale;
+      const y = (annotatePageSize.height - a.y - a.h) * annotateScale;
+      const div = document.createElement('div');
+      div.className = 'anno-box';
+      div.style.left = x + 'px'; div.style.top = y + 'px';
+      div.style.width = (a.w * annotateScale) + 'px'; div.style.height = (a.h * annotateScale) + 'px';
+      div.style.borderColor = a.color;
+      div.style.background = a.type === 'highlight' ? a.color + '55' : 'transparent';
+      div.style.opacity = a.opacity;
+      if (a.type === 'ellipse') div.style.borderRadius = '50%';
+      layer.appendChild(div);
+    } else if (a.type === 'arrow') {
+      const p1 = pdfToCanvasPoint({ x: a.x1, y: a.y1 });
+      const p2 = pdfToCanvasPoint({ x: a.x2, y: a.y2 });
+      const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+      svg.setAttribute('style', 'position:absolute;inset:0;pointer-events:none;overflow:visible;');
+      svg.setAttribute('width', document.getElementById('annotate-base-canvas').width);
+      svg.setAttribute('height', document.getElementById('annotate-base-canvas').height);
+      const markerId = 'arrowhead-' + idx;
+      svg.innerHTML = `<defs><marker id="${markerId}" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="${a.color}"/></marker></defs><line x1="${p1.x}" y1="${p1.y}" x2="${p2.x}" y2="${p2.y}" stroke="${a.color}" stroke-width="${a.width*annotateScale}" opacity="${a.opacity}" marker-end="url(#${markerId})"/>`;
+      layer.appendChild(svg);
+    } else if (a.type === 'image') {
+      const x = a.x * annotateScale;
+      const y = (annotatePageSize.height - a.y - a.h) * annotateScale;
+      const div = document.createElement('div');
+      div.className = 'anno-box';
+      div.style.cssText = `left:${x}px;top:${y}px;width:${a.w*annotateScale}px;height:${a.h*annotateScale}px;border:1px solid ${a.color};background:url(${a.dataUrl}) center/contain no-repeat;opacity:${a.opacity};`;
+      layer.appendChild(div);
+    }
+  });
+}
+
+document.querySelectorAll('#annotate-toolbar .tool-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('#annotate-toolbar .tool-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    annotateTool = btn.dataset.tool;
+    if (annotateTool === 'image') document.getElementById('annotate-image-input').click();
+  });
+});
+document.getElementById('annotate-image-input').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    annotateImageData = { dataUrl: reader.result, mime: file.type };
+    setStatus('status-annotate', 'Bild geladen — jetzt Position im Dokument anklicken.');
+  };
+  reader.readAsDataURL(file);
+});
+
+function annotateLayerPos(e) {
+  const rect = document.getElementById('annotate-layer').getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+}
+
+document.getElementById('annotate-layer').addEventListener('pointerdown', e => {
+  if (!annotatePdf || annotateTool === 'select') return;
+  e.preventDefault();
+  const layerEl = document.getElementById('annotate-layer');
+  layerEl.setPointerCapture(e.pointerId);
+  const p = annotateLayerPos(e);
+  const pdfP = canvasToPdfPoint(p);
+  const color = document.getElementById('annotate-color').value;
+  const size = parseFloat(document.getElementById('annotate-size').value) || 20;
+  const opacity = parseFloat(document.getElementById('annotate-opacity').value);
+
+  if (annotateTool === 'text') {
+    const text = prompt('Text eingeben:', '');
+    if (text) { currentPageAnnotations().push({ type: 'text', x: pdfP.x, y: pdfP.y, text, size, color, opacity }); drawAnnotationOverlay(); }
+    return;
+  }
+  if (annotateTool === 'image') {
+    if (!annotateImageData) { setStatus('status-annotate', 'Bitte zuerst ein Bild auswählen.', false); return; }
+    const w = 140, h = 90;
+    currentPageAnnotations().push({ type: 'image', x: pdfP.x, y: pdfP.y - h, w, h, dataUrl: annotateImageData.dataUrl, mime: annotateImageData.mime, color, opacity });
+    drawAnnotationOverlay();
+    return;
+  }
+  annotateDragState = { tool: annotateTool, startCanvas: p, startPdf: pdfP, color, size, opacity };
+});
+document.getElementById('annotate-layer').addEventListener('pointermove', e => {
+  if (!annotateDragState) return;
+  e.preventDefault();
+  const p = annotateLayerPos(e);
+  let preview = document.getElementById('annotate-drag-preview');
+  if (!preview) {
+    preview = document.createElement('div');
+    preview.id = 'annotate-drag-preview';
+    preview.className = 'anno-box';
+    document.getElementById('annotate-layer').appendChild(preview);
+  }
+  const s = annotateDragState.startCanvas;
+  preview.style.left = Math.min(s.x, p.x) + 'px';
+  preview.style.top = Math.min(s.y, p.y) + 'px';
+  preview.style.width = Math.abs(p.x - s.x) + 'px';
+  preview.style.height = Math.abs(p.y - s.y) + 'px';
+  preview.style.borderColor = annotateDragState.color;
+  preview.style.background = annotateDragState.tool === 'highlight' ? annotateDragState.color + '55' : 'transparent';
+  preview.style.borderRadius = annotateDragState.tool === 'ellipse' ? '50%' : '0';
+});
+document.getElementById('annotate-layer').addEventListener('pointerup', e => {
+  if (!annotateDragState) return;
+  const p = annotateLayerPos(e);
+  const pdfP = canvasToPdfPoint(p);
+  document.getElementById('annotate-drag-preview')?.remove();
+  const { tool, startCanvas, startPdf, color, size, opacity } = annotateDragState;
+  annotateDragState = null;
+  if (Math.abs(p.x - startCanvas.x) < 4 && Math.abs(p.y - startCanvas.y) < 4) return; // versehentlicher Tipp/Klick
+
+  if (tool === 'arrow') {
+    currentPageAnnotations().push({ type: 'arrow', x1: startPdf.x, y1: startPdf.y, x2: pdfP.x, y2: pdfP.y, color, width: Math.max(2, size / 8), opacity });
+  } else {
+    const x = Math.min(startPdf.x, pdfP.x), y = Math.min(startPdf.y, pdfP.y);
+    const w = Math.abs(pdfP.x - startPdf.x), h = Math.abs(pdfP.y - startPdf.y);
+    currentPageAnnotations().push({ type: tool, x, y, w, h, color, opacity });
+  }
+  drawAnnotationOverlay();
+});
+document.getElementById('annotate-layer').addEventListener('pointercancel', () => {
+  document.getElementById('annotate-drag-preview')?.remove();
+  annotateDragState = null;
+});
+
+document.getElementById('annotate-prev').addEventListener('click', async () => { if (annotateCurrentPage > 0) { annotateCurrentPage--; await renderAnnotatePage(); } });
+document.getElementById('annotate-next').addEventListener('click', async () => { if (annotateCurrentPage < annotatePageCount - 1) { annotateCurrentPage++; await renderAnnotatePage(); } });
+document.getElementById('btn-annotate-undo').addEventListener('click', () => { currentPageAnnotations().pop(); drawAnnotationOverlay(); });
+document.getElementById('btn-annotate-clear').addEventListener('click', () => { annotationsByPage[annotateCurrentPage] = []; drawAnnotationOverlay(); });
+
+document.getElementById('btn-annotate-export').addEventListener('click', async () => {
+  try {
+    if (!annotateFile) throw new Error('Bitte zuerst eine PDF laden.');
+    setStatus('status-annotate', 'Erzeuge kommentierte PDF …');
+    const bytes = await annotateFile.arrayBuffer();
+    const pdfDoc = await PDFDocument.load(bytes);
+    const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+    const pages = pdfDoc.getPages();
+    for (let pi = 0; pi < pages.length; pi++) {
+      const page = pages[pi];
+      for (const a of (annotationsByPage[pi] || [])) {
+        if (a.type === 'text') {
+          page.drawText(a.text, { x: a.x, y: a.y, size: a.size, font, color: hexToRgbColor(a.color), opacity: a.opacity });
+        } else if (a.type === 'highlight' || a.type === 'rect') {
+          page.drawRectangle({
+            x: a.x, y: a.y, width: a.w, height: a.h,
+            borderColor: hexToRgbColor(a.color), borderWidth: a.type === 'rect' ? 1.8 : 0,
+            color: a.type === 'highlight' ? hexToRgbColor(a.color) : undefined,
+            opacity: a.opacity
+          });
+        } else if (a.type === 'ellipse') {
+          page.drawEllipse({ x: a.x + a.w/2, y: a.y + a.h/2, xScale: a.w/2, yScale: a.h/2, borderColor: hexToRgbColor(a.color), borderWidth: 1.8, opacity: a.opacity });
+        } else if (a.type === 'arrow') {
+          page.drawLine({ start: { x: a.x1, y: a.y1 }, end: { x: a.x2, y: a.y2 }, thickness: a.width, color: hexToRgbColor(a.color), opacity: a.opacity });
+        } else if (a.type === 'image') {
+          const imgBytes = await fetch(a.dataUrl).then(r => r.arrayBuffer());
+          const img = a.mime.includes('png') ? await pdfDoc.embedPng(imgBytes) : await pdfDoc.embedJpg(imgBytes);
+          page.drawImage(img, { x: a.x, y: a.y, width: a.w, height: a.h, opacity: a.opacity });
+        }
+      }
+    }
+    download(await pdfDoc.save(), 'kommentiert.pdf');
+    setStatus('status-annotate', 'Fertig — kommentierte PDF heruntergeladen. Der ursprüngliche Text wurde nicht verändert, alle Anmerkungen liegen als neue Ebene darüber.');
+  } catch (e) {
+    setStatus('status-annotate', 'Fehler: ' + e.message, false);
+  }
+});
+
+// ---------- Anpassung bei Größenänderung / Bildschirmdrehung (z. B. Smartphone hoch/quer) ----------
+let resizeDebounce = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeDebounce);
+  resizeDebounce = setTimeout(() => {
+    if (annotatePdf) renderAnnotatePage();
+    if (watermarkBaseImage) drawWatermarkPreview();
+  }, 200);
+});
+</script>
+</body>
+</html>
