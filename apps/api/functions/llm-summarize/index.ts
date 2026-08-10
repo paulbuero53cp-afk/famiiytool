@@ -2,9 +2,68 @@
 // Einziger Aufrufweg für "Mit KI zusammenfassen": expliziter Klick im Frontend
 // ruft genau diesen Endpoint auf. Es gibt keinen automatischen Trigger beim
 // Speichern eines Dokuments (siehe /CLAUDE.md, Sicherheitsregel 4).
+//
+// Bewusst als EINE Datei gehalten (kein Import aus packages/llm-client),
+// damit sie 1:1 in den Supabase-Dashboard-Function-Editor eingefügt werden
+// kann — Deploy dort braucht keinen CLI-Login. Die Wrapper-Logik in
+// packages/llm-client/src/wrapper.ts ist die dokumentierte Referenzversion;
+// bei Änderungen beide Stellen synchron halten.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
-import { summarize } from "../../../../packages/llm-client/src/wrapper.ts";
+
+const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_VERSION = "2023-06-01";
+
+const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number }> = {
+  "claude-sonnet-5": { input: 3, output: 15 },
+  "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
+};
+
+function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
+  const pricing = PRICING_PER_MILLION_TOKENS[model];
+  if (!pricing) return 0;
+  return (inputTokens * pricing.input + outputTokens * pricing.output) / 1_000_000;
+}
+
+async function summarize(apiKey: string, text: string, context: string | undefined, model = "claude-sonnet-5") {
+  const userContent = context ? `Kontext: ${context}\n\nText:\n${text}` : text;
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1024,
+      messages: [
+        {
+          role: "user",
+          content: `Fasse den folgenden Text präzise auf Deutsch zusammen:\n\n${userContent}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Claude API Fehler (${response.status}): ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  const summary = data.content?.[0]?.text ?? "";
+  const inputTokens: number = data.usage?.input_tokens ?? 0;
+  const outputTokens: number = data.usage?.output_tokens ?? 0;
+
+  return {
+    summary,
+    model,
+    inputTokens,
+    outputTokens,
+    estimatedCostUsd: estimateCostUsd(model, inputTokens, outputTokens),
+  };
+}
 
 Deno.serve(async (req) => {
   if (req.method !== "POST") {
@@ -51,11 +110,7 @@ Deno.serve(async (req) => {
     return new Response("Objekt nicht gefunden oder kein Zugriff", { status: 404 });
   }
 
-  const result = await summarize({
-    apiKey: Deno.env.get("ANTHROPIC_API_KEY")!,
-    text,
-    context,
-  });
+  const result = await summarize(Deno.env.get("ANTHROPIC_API_KEY")!, text, context);
 
   // Service-Role-Client NUR für das Kosten-Log — nicht für Content-Zugriff.
   const serviceClient = createClient(
