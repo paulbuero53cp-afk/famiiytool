@@ -65,14 +65,27 @@ async function summarize(apiKey: string, text: string, context: string | undefin
   };
 }
 
+// Browser ruft diese Function direkt vom Frontend-Origin auf (kein eigener
+// Reverse-Proxy) — daher muss der Preflight (OPTIONS) explizit beantwortet
+// werden, sonst blockt der Browser den eigentlichen POST-Request per CORS.
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Methods": "POST, OPTIONS",
+};
+
 Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
   if (req.method !== "POST") {
-    return new Response("Method Not Allowed", { status: 405 });
+    return new Response("Method Not Allowed", { status: 405, headers: corsHeaders });
   }
 
   const authHeader = req.headers.get("Authorization");
   if (!authHeader) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
 
   // Client mit dem Auth-Token des aufrufenden Nutzers — RLS greift hier ganz normal,
@@ -89,13 +102,13 @@ Deno.serve(async (req) => {
   } = await userClient.auth.getUser();
 
   if (userError || !user) {
-    return new Response("Unauthorized", { status: 401 });
+    return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
 
   const { objectId, text, context } = await req.json();
 
   if (!objectId || !text) {
-    return new Response("objectId und text sind Pflichtfelder", { status: 400 });
+    return new Response("objectId und text sind Pflichtfelder", { status: 400, headers: corsHeaders });
   }
 
   // Bestätigt implizit die RLS-Sichtbarkeit: schlägt fehl, wenn das Objekt
@@ -107,7 +120,7 @@ Deno.serve(async (req) => {
     .single();
 
   if (objectError || !object) {
-    return new Response("Objekt nicht gefunden oder kein Zugriff", { status: 404 });
+    return new Response("Objekt nicht gefunden oder kein Zugriff", { status: 404, headers: corsHeaders });
   }
 
   const result = await summarize(Deno.env.get("ANTHROPIC_API_KEY")!, text, context);
@@ -128,6 +141,6 @@ Deno.serve(async (req) => {
   });
 
   return new Response(JSON.stringify({ summary: result.summary }), {
-    headers: { "content-type": "application/json" },
+    headers: { ...corsHeaders, "content-type": "application/json" },
   });
 });
