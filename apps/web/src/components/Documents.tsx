@@ -20,6 +20,7 @@ export function Documents({ userId }: DocumentsProps) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [sensitiveField, setSensitiveField] = useState("");
+  const [isTemplate, setIsTemplate] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [summaries, setSummaries] = useState<Record<string, string>>({});
@@ -46,10 +47,11 @@ export function Documents({ userId }: DocumentsProps) {
     setSaving(true);
     setError(null);
     try {
-      await createDocument({ title, content, sensitiveField }, userId);
+      await createDocument({ title, content, sensitiveField, isTemplate }, userId);
       setTitle("");
       setContent("");
       setSensitiveField("");
+      setIsTemplate(false);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -126,6 +128,16 @@ export function Documents({ userId }: DocumentsProps) {
               Hier noch keine echten sensiblen Daten eintragen.
             </p>
           </div>
+
+          <label className="flex items-center gap-2 text-sm text-slate-300">
+            <input
+              type="checkbox"
+              checked={isTemplate}
+              onChange={(e) => setIsTemplate(e.target.checked)}
+              className="rounded border-slate-600 bg-slate-900"
+            />
+            Als Vorlage speichern
+          </label>
 
           <button
             type="submit"

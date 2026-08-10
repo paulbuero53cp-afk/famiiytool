@@ -22,6 +22,7 @@ export interface NewDocumentInput {
   title: string;
   content: string;
   sensitiveField: string;
+  isTemplate: boolean;
 }
 
 export async function listMyDocuments(): Promise<DocumentObject[]> {
@@ -44,7 +45,7 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
       content: input.content,
       // TODO(Verschlüsselung): siehe DocumentObject.encrypted_field
       encrypted_field: input.sensitiveField || null,
-      is_template: false,
+      is_template: input.isTemplate,
     })
     .select()
     .single();
