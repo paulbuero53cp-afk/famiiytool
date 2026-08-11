@@ -15,16 +15,25 @@ export interface DocumentObject {
   storage_path: string | null;
   is_template: boolean;
   tags: string[];
+  // Generische Verknüpfung Objekt -> Projekt (siehe 0011_projects_and_finance.sql).
+  // Ein "Projekt" ist selbst nur ein objects-Eintrag mit type='project'.
+  project_id: string | null;
+  // Generisches Betrags-Feld, primär für type='expense' (Finanzverwaltung) —
+  // keine eigene Tabelle, bewusst wiederverwendbar für andere Typen.
+  amount: number | null;
   created_at: string;
   updated_at: string;
 }
 
 export interface NewDocumentInput {
+  type: string;
   title: string;
   content: string;
   sensitiveField: string;
   isTemplate: boolean;
   tags: string[];
+  projectId: string | null;
+  amount: number | null;
 }
 
 export async function listMyDocuments(): Promise<DocumentObject[]> {
@@ -32,6 +41,19 @@ export async function listMyDocuments(): Promise<DocumentObject[]> {
     .from("objects")
     .select("*")
     .order("created_at", { ascending: false });
+
+  if (error) throw error;
+  return data as DocumentObject[];
+}
+
+// type='project' — Projekte sind bewusst keine eigene Tabelle (siehe
+// CLAUDE.md, Datenmodell-Grundsatz), nur eine gefilterte Sicht auf objects.
+export async function listMyProjects(): Promise<DocumentObject[]> {
+  const { data, error } = await supabase
+    .from("objects")
+    .select("*")
+    .eq("type", "project")
+    .order("title");
 
   if (error) throw error;
   return data as DocumentObject[];
@@ -51,12 +73,14 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
     .from("objects")
     .insert({
       owner_id: ownerId,
-      type: "document",
+      type: input.type,
       title: input.title,
       content: input.content,
       encrypted_field: encryptedField,
       is_template: input.isTemplate,
       tags: input.tags,
+      project_id: input.projectId,
+      amount: input.amount,
     })
     .select()
     .single();
@@ -70,6 +94,8 @@ export interface UpdateDocumentInput {
   content: string;
   sensitiveField: string;
   tags: string[];
+  projectId: string | null;
+  amount: number | null;
 }
 
 export async function updateDocument(objectId: string, input: UpdateDocumentInput): Promise<DocumentObject> {
@@ -89,6 +115,8 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
       content: input.content,
       encrypted_field: encryptedField,
       tags: input.tags,
+      project_id: input.projectId,
+      amount: input.amount,
     })
     .eq("id", objectId)
     .select()
@@ -174,6 +202,9 @@ export async function instantiateTemplate(template: DocumentObject, ownerId: str
       content: template.content,
       encrypted_field: template.encrypted_field,
       is_template: false,
+      tags: template.tags,
+      project_id: template.project_id,
+      amount: template.amount,
     })
     .select()
     .single();

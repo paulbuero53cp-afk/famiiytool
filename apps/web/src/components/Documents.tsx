@@ -7,6 +7,7 @@ import {
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
+  listMyProjects,
   listShares,
   removeFile,
   revokeShare,
@@ -20,10 +21,32 @@ import { getEncryptionKey } from "../lib/encryptionSession";
 
 interface DocumentsProps {
   userId: string;
+  // Generische Ansicht auf dieselbe objects-Tabelle (siehe CLAUDE.md,
+  // Datenmodell-Grundsatz) — Projekte/Finanzen/Haus/Schulhelfer sind alle
+  // nur diese eine Komponente mit anderen Voreinstellungen, keine eigenen
+  // Komponenten/Tabellen. Neues Modul = neuer Eintrag in lib/modules.ts mit
+  // passenden Props hier, nicht neuer Code.
+  objectType?: string;
+  presetTag?: string;
+  heading?: string;
+  showAmount?: boolean;
+  showProjectPicker?: boolean;
+  showSum?: boolean;
+  emptyLabel?: string;
 }
 
-export function Documents({ userId }: DocumentsProps) {
+export function Documents({
+  userId,
+  objectType = "document",
+  presetTag,
+  heading = "Meine Dokumente",
+  showAmount = false,
+  showProjectPicker = false,
+  showSum = false,
+  emptyLabel = "Noch keine Einträge.",
+}: DocumentsProps) {
   const [documents, setDocuments] = useState<DocumentObject[]>([]);
+  const [projects, setProjects] = useState<DocumentObject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +55,8 @@ export function Documents({ userId }: DocumentsProps) {
   const [sensitiveField, setSensitiveField] = useState("");
   const [isTemplate, setIsTemplate] = useState(false);
   const [tagsInput, setTagsInput] = useState("");
+  const [amountInput, setAmountInput] = useState("");
+  const [projectId, setProjectId] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
@@ -50,6 +75,8 @@ export function Documents({ userId }: DocumentsProps) {
   const [editContent, setEditContent] = useState("");
   const [editSensitiveField, setEditSensitiveField] = useState("");
   const [editTagsInput, setEditTagsInput] = useState("");
+  const [editAmountInput, setEditAmountInput] = useState("");
+  const [editProjectId, setEditProjectId] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [removingFileId, setRemovingFileId] = useState<string | null>(null);
@@ -58,8 +85,13 @@ export function Documents({ userId }: DocumentsProps) {
   async function refresh() {
     setLoading(true);
     try {
-      const docs = await listMyDocuments();
+      const [allDocs, allProjects] = await Promise.all([
+        listMyDocuments(),
+        showProjectPicker ? listMyProjects() : Promise.resolve([]),
+      ]);
+      const docs = allDocs.filter((d) => d.type === objectType);
       setDocuments(docs);
+      setProjects(allProjects);
 
       const decrypted: Record<string, string> = {};
       for (const doc of docs) {
@@ -84,7 +116,8 @@ export function Documents({ userId }: DocumentsProps) {
 
   useEffect(() => {
     refresh();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [objectType]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -95,7 +128,21 @@ export function Documents({ userId }: DocumentsProps) {
         .split(",")
         .map((t) => t.trim())
         .filter(Boolean);
-      const doc = await createDocument({ title, content, sensitiveField, isTemplate, tags }, userId);
+      if (presetTag && !tags.includes(presetTag)) tags.push(presetTag);
+
+      const doc = await createDocument(
+        {
+          type: objectType,
+          title,
+          content,
+          sensitiveField,
+          isTemplate,
+          tags,
+          projectId: projectId || null,
+          amount: amountInput ? Number(amountInput) : null,
+        },
+        userId,
+      );
       if (file) {
         await attachFile(doc, file, userId);
       }
@@ -104,6 +151,8 @@ export function Documents({ userId }: DocumentsProps) {
       setSensitiveField("");
       setIsTemplate(false);
       setTagsInput("");
+      setAmountInput("");
+      setProjectId("");
       setFile(null);
       await refresh();
     } catch (err) {
@@ -203,6 +252,8 @@ export function Documents({ userId }: DocumentsProps) {
     setEditContent(doc.content ?? "");
     setEditSensitiveField(decryptedFields[doc.id] ?? "");
     setEditTagsInput(doc.tags.join(", "));
+    setEditAmountInput(doc.amount !== null ? String(doc.amount) : "");
+    setEditProjectId(doc.project_id ?? "");
     setError(null);
   }
 
@@ -220,6 +271,8 @@ export function Documents({ userId }: DocumentsProps) {
         content: editContent,
         sensitiveField: editSensitiveField,
         tags,
+        projectId: editProjectId || null,
+        amount: editAmountInput ? Number(editAmountInput) : null,
       });
       setEditOpenFor(null);
       await refresh();
@@ -254,7 +307,7 @@ export function Documents({ userId }: DocumentsProps) {
     }
   }
 
-  const allTags = [...new Set(documents.flatMap((doc) => doc.tags))].sort();
+  const allTags = [...new Set(documents.flatMap((doc) => doc.tags))].filter((t) => t !== presetTag).sort();
 
   const filteredDocuments = documents.filter((doc) => {
     const searchLower = search.trim().toLowerCase();
@@ -262,16 +315,24 @@ export function Documents({ userId }: DocumentsProps) {
       !searchLower ||
       doc.title.toLowerCase().includes(searchLower) ||
       (doc.content ?? "").toLowerCase().includes(searchLower);
+    const matchesPresetTag = !presetTag || doc.tags.includes(presetTag);
     const matchesTag = !activeTag || doc.tags.includes(activeTag);
-    return matchesSearch && matchesTag;
+    return matchesSearch && matchesPresetTag && matchesTag;
   });
+
+  const sum = filteredDocuments.reduce((total, doc) => total + (doc.amount ?? 0), 0);
+
+  function projectName(id: string | null): string | null {
+    if (!id) return null;
+    return projects.find((p) => p.id === id)?.title ?? null;
+  }
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <h2 className="text-2xl font-medium">Meine Dokumente</h2>
+      <h2 className="text-2xl font-medium">{heading}</h2>
 
       <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-slate-700 bg-slate-800 p-5">
-        <h3 className="text-sm font-medium text-slate-300">Neues Dokument</h3>
+        <h3 className="text-sm font-medium text-slate-300">Neuer Eintrag</h3>
 
         <input
           placeholder="Titel"
@@ -301,6 +362,32 @@ export function Documents({ userId }: DocumentsProps) {
             auch der Admin kann es nicht lesen. Passwort vergessen bedeutet: dieser Inhalt ist unwiederbringlich weg.
           </p>
         </div>
+
+        {showAmount && (
+          <input
+            type="number"
+            step="0.01"
+            placeholder="Betrag in €"
+            value={amountInput}
+            onChange={(e) => setAmountInput(e.target.value)}
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          />
+        )}
+
+        {showProjectPicker && projects.length > 0 && (
+          <select
+            value={projectId}
+            onChange={(e) => setProjectId(e.target.value)}
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          >
+            <option value="">Keinem Projekt zuordnen</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.title}
+              </option>
+            ))}
+          </select>
+        )}
 
         <input
           placeholder="Tags, kommagetrennt (z. B. urlaub, wichtig)"
@@ -358,19 +445,29 @@ export function Documents({ userId }: DocumentsProps) {
             ))}
           </div>
         )}
+        {showSum && filteredDocuments.length > 0 && (
+          <p className="text-sm text-slate-300">
+            Summe: <span className="font-medium text-emerald-300">{sum.toFixed(2)} €</span>
+          </p>
+        )}
       </div>
 
       <div className="space-y-3">
         {loading && <p className="text-sm text-slate-400">Lädt…</p>}
-        {!loading && documents.length === 0 && <p className="text-sm text-slate-400">Noch keine Dokumente.</p>}
+        {!loading && documents.length === 0 && <p className="text-sm text-slate-400">{emptyLabel}</p>}
         {!loading && documents.length > 0 && filteredDocuments.length === 0 && (
-          <p className="text-sm text-slate-400">Keine Dokumente passen zu diesem Filter.</p>
+          <p className="text-sm text-slate-400">Keine Einträge passen zu diesem Filter.</p>
         )}
 
         {filteredDocuments.map((doc) => (
           <div key={doc.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-2">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium">{doc.title}</h3>
+              <h3 className="font-medium">
+                {doc.title}
+                {showAmount && doc.amount !== null && (
+                  <span className="ml-2 text-emerald-300">{doc.amount.toFixed(2)} €</span>
+                )}
+              </h3>
               <div className="flex gap-1">
                 {doc.is_template && (
                   <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
@@ -381,15 +478,21 @@ export function Documents({ userId }: DocumentsProps) {
               </div>
             </div>
 
+            {showProjectPicker && projectName(doc.project_id) && (
+              <p className="text-xs text-slate-500">Projekt: {projectName(doc.project_id)}</p>
+            )}
+
             {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
 
-            {doc.tags.length > 0 && (
+            {doc.tags.filter((t) => t !== presetTag).length > 0 && (
               <div className="flex flex-wrap gap-1">
-                {doc.tags.map((tag) => (
-                  <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                    {tag}
-                  </span>
-                ))}
+                {doc.tags
+                  .filter((t) => t !== presetTag)
+                  .map((tag) => (
+                    <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                      {tag}
+                    </span>
+                  ))}
               </div>
             )}
 
@@ -416,7 +519,7 @@ export function Documents({ userId }: DocumentsProps) {
               )}
               {doc.is_template && (
                 <button onClick={() => handleInstantiate(doc)} className="text-xs text-slate-300 underline">
-                  Als neues Dokument aus dieser Vorlage starten
+                  Als neuen Eintrag aus dieser Vorlage starten
                 </button>
               )}
               {doc.storage_path && (
@@ -477,6 +580,30 @@ export function Documents({ userId }: DocumentsProps) {
                   onChange={(e) => setEditSensitiveField(e.target.value)}
                   className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
                 />
+                {showAmount && (
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="Betrag in €"
+                    value={editAmountInput}
+                    onChange={(e) => setEditAmountInput(e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                )}
+                {showProjectPicker && projects.length > 0 && (
+                  <select
+                    value={editProjectId}
+                    onChange={(e) => setEditProjectId(e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  >
+                    <option value="">Keinem Projekt zuordnen</option>
+                    {projects.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.title}
+                      </option>
+                    ))}
+                  </select>
+                )}
                 <input
                   placeholder="Tags, kommagetrennt"
                   value={editTagsInput}
