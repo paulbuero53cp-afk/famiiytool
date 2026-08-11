@@ -3,12 +3,14 @@ import { supabase } from "../lib/supabaseClient";
 import {
   attachFile,
   createDocument,
+  decryptSensitiveField,
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
   summarizeDocument,
   type DocumentObject,
 } from "../lib/objects";
+import { clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
 
 interface DocumentsProps {
   userId: string;
@@ -28,11 +30,27 @@ export function Documents({ userId }: DocumentsProps) {
 
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [summarizing, setSummarizing] = useState<string | null>(null);
+  const [decryptedFields, setDecryptedFields] = useState<Record<string, string>>({});
 
   async function refresh() {
     setLoading(true);
     try {
-      setDocuments(await listMyDocuments());
+      const docs = await listMyDocuments();
+      setDocuments(docs);
+
+      const decrypted: Record<string, string> = {};
+      for (const doc of docs) {
+        if (!doc.encrypted_field) continue;
+        try {
+          const plain = await decryptSensitiveField(doc.encrypted_field);
+          if (plain !== null) decrypted[doc.id] = plain;
+        } catch {
+          // falscher/fehlender Schlüssel — Feld bleibt in decryptedFields
+          // ausgespart, UI zeigt dann den Gesperrt-Hinweis
+        }
+      }
+      setDecryptedFields(decrypted);
+
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Laden fehlgeschlagen");
@@ -108,7 +126,10 @@ export function Documents({ userId }: DocumentsProps) {
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-medium">Meine Dokumente</h1>
           <button
-            onClick={() => supabase.auth.signOut()}
+            onClick={() => {
+              clearEncryptionKey();
+              supabase.auth.signOut();
+            }}
             className="text-sm text-slate-400 underline"
           >
             Ausloggen
@@ -136,14 +157,14 @@ export function Documents({ userId }: DocumentsProps) {
 
           <div>
             <input
-              placeholder="Sensibles Feld (aktuell noch Klartext — siehe TODO in src/lib/objects.ts)"
+              placeholder="Sensibles Feld (verschlüsselt)"
               value={sensitiveField}
               onChange={(e) => setSensitiveField(e.target.value)}
               className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
             />
-            <p className="mt-1 text-xs text-amber-400">
-              Verschlüsselung noch nicht implementiert — Schlüsselverwaltung ist offen (siehe familientool-kickoff.md).
-              Hier noch keine echten sensiblen Daten eintragen.
+            <p className="mt-1 text-xs text-slate-500">
+              🔒 Wird mit einem aus deinem Passwort abgeleiteten Schlüssel verschlüsselt, bevor es gespeichert wird
+              — auch der Admin kann es nicht lesen. Passwort vergessen bedeutet: dieser Inhalt ist unwiederbringlich weg.
             </p>
           </div>
 
@@ -190,6 +211,17 @@ export function Documents({ userId }: DocumentsProps) {
               </div>
 
               {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
+
+              {doc.encrypted_field && (
+                <p className="text-sm text-emerald-300">
+                  🔒{" "}
+                  {decryptedFields[doc.id] ?? (
+                    <span className="text-amber-400">
+                      Gesperrt — {getEncryptionKey() ? "falsches Passwort?" : "bitte aus- und wieder einloggen"}
+                    </span>
+                  )}
+                </p>
+              )}
 
               <div className="flex gap-3 pt-1">
                 {doc.content && (

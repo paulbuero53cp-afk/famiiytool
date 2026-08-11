@@ -1,4 +1,6 @@
 import { supabase } from "./supabaseClient";
+import { decryptText, encryptText } from "./crypto";
+import { getEncryptionKey } from "./encryptionSession";
 
 export interface DocumentObject {
   id: string;
@@ -6,10 +8,9 @@ export interface DocumentObject {
   type: string;
   title: string;
   content: string | null;
-  // TODO(Verschlüsselung): aktuell Klartext-Platzhalter. Bevor echte sensible
-  // Daten gespeichert werden, muss hier anwendungsseitige Verschlüsselung
-  // rein (siehe CLAUDE.md, Sicherheitsregel 3) — Schlüsselverwaltung ist noch
-  // nicht entschieden (Session 1 offen gelassen).
+  // Passwort-abgeleitet AES-GCM-verschlüsselt (siehe lib/crypto.ts). Enthält
+  // NIE Klartext in der DB — Ver-/Entschlüsselung passiert ausschließlich im
+  // Browser mit dem session-lokalen Schlüssel aus lib/encryptionSession.ts.
   encrypted_field: string | null;
   storage_path: string | null;
   is_template: boolean;
@@ -36,6 +37,15 @@ export async function listMyDocuments(): Promise<DocumentObject[]> {
 }
 
 export async function createDocument(input: NewDocumentInput, ownerId: string): Promise<DocumentObject> {
+  let encryptedField: string | null = null;
+  if (input.sensitiveField) {
+    const key = getEncryptionKey();
+    if (!key) {
+      throw new Error("Verschlüsselung nicht bereit — bitte einmal aus- und wieder einloggen.");
+    }
+    encryptedField = await encryptText(key, input.sensitiveField);
+  }
+
   const { data, error } = await supabase
     .from("objects")
     .insert({
@@ -43,8 +53,7 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
       type: "document",
       title: input.title,
       content: input.content,
-      // TODO(Verschlüsselung): siehe DocumentObject.encrypted_field
-      encrypted_field: input.sensitiveField || null,
+      encrypted_field: encryptedField,
       is_template: input.isTemplate,
     })
     .select()
@@ -52,6 +61,16 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
 
   if (error) throw error;
   return data as DocumentObject;
+}
+
+// Gibt null zurück, wenn kein Schlüssel vorhanden ist (z. B. nach Reload,
+// siehe encryptionSession.ts) oder das Feld leer ist — die UI zeigt dann
+// einen Gesperrt-Hinweis statt eines Fehlers.
+export async function decryptSensitiveField(encryptedField: string | null): Promise<string | null> {
+  if (!encryptedField) return null;
+  const key = getEncryptionKey();
+  if (!key) return null;
+  return decryptText(key, encryptedField);
 }
 
 // Binärdatei gehört NIE in die DB-Zeile — landet in Supabase Storage,

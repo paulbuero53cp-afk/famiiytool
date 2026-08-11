@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
+import { unlockEncryption } from "../lib/encryptionSession";
 
 export function Login() {
   const [email, setEmail] = useState("");
@@ -15,21 +16,40 @@ export function Login() {
     setInfo(null);
     setBusy(true);
 
-    const { error: authError } =
+    const { data, error: authError } =
       mode === "signIn"
         ? await supabase.auth.signInWithPassword({ email, password })
         : await supabase.auth.signUp({ email, password });
 
-    setBusy(false);
-
     if (authError) {
+      setBusy(false);
       setError(authError.message);
       return;
     }
 
-    if (mode === "signUp") {
+    if (mode === "signUp" && !data.session) {
+      setBusy(false);
       setInfo("Registrierung erfolgreich — bitte E-Mail bestätigen und dann einloggen.");
+      return;
     }
+
+    // Passwort liegt hier im Klartext vor — einziger Moment, an dem wir es
+    // haben. Schlüsselableitung siehe lib/crypto.ts / encryptionSession.ts.
+    if (data.user) {
+      try {
+        await unlockEncryption(data.user.id, password);
+      } catch (err) {
+        setBusy(false);
+        setError(
+          err instanceof Error
+            ? `Verschlüsselung konnte nicht initialisiert werden: ${err.message}`
+            : "Verschlüsselung konnte nicht initialisiert werden",
+        );
+        return;
+      }
+    }
+
+    setBusy(false);
   }
 
   return (
