@@ -1,6 +1,6 @@
 import { useAuth } from "./lib/useAuth";
 import { Login } from "./components/Login";
-import { Documents } from "./components/Documents";
+import { Shell } from "./components/Shell";
 
 function App() {
   const { user, loading } = useAuth();
@@ -17,7 +17,7 @@ function App() {
     return <Login />;
   }
 
-  return <Documents userId={user.id} />;
+  return <Shell userId={user.id} />;
 }
 
 export default App;
