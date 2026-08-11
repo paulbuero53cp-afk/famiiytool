@@ -1,5 +1,4 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { supabase } from "../lib/supabaseClient";
 import {
   attachFile,
   createDocument,
@@ -17,9 +16,7 @@ import {
   type DocumentObject,
   type ShareEntry,
 } from "../lib/objects";
-import { changePassword, clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
-import { isCurrentUserAdmin } from "../lib/admin";
-import { Admin } from "./Admin";
+import { getEncryptionKey } from "../lib/encryptionSession";
 
 interface DocumentsProps {
   userId: string;
@@ -47,7 +44,6 @@ export function Documents({ userId }: DocumentsProps) {
   const [shareEmail, setShareEmail] = useState("");
   const [sharing, setSharing] = useState(false);
   const [shareInfo, setShareInfo] = useState<string | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
 
   const [editOpenFor, setEditOpenFor] = useState<string | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -58,15 +54,6 @@ export function Documents({ userId }: DocumentsProps) {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [removingFileId, setRemovingFileId] = useState<string | null>(null);
   const [shares, setShares] = useState<Record<string, ShareEntry[]>>({});
-
-  const [pwOpen, setPwOpen] = useState(false);
-  const [newPassword, setNewPassword] = useState("");
-  const [pwSaving, setPwSaving] = useState(false);
-  const [pwInfo, setPwInfo] = useState<string | null>(null);
-
-  useEffect(() => {
-    isCurrentUserAdmin(userId).then(setIsAdmin).catch(() => setIsAdmin(false));
-  }, [userId]);
 
   async function refresh() {
     setLoading(true);
@@ -210,22 +197,6 @@ export function Documents({ userId }: DocumentsProps) {
     }
   }
 
-  async function handlePasswordChange(e: FormEvent) {
-    e.preventDefault();
-    setPwSaving(true);
-    setError(null);
-    setPwInfo(null);
-    try {
-      await changePassword(userId, newPassword);
-      setPwInfo("Passwort geändert, alle sensiblen Felder neu verschlüsselt.");
-      setNewPassword("");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Passwort konnte nicht geändert werden");
-    } finally {
-      setPwSaving(false);
-    }
-  }
-
   function openEdit(doc: DocumentObject) {
     setEditOpenFor(doc.id);
     setEditTitle(doc.title);
@@ -296,355 +267,284 @@ export function Documents({ userId }: DocumentsProps) {
   });
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 px-6 py-10">
-      <div className="mx-auto max-w-2xl space-y-8">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-medium">Meine Dokumente</h1>
-          <div className="flex items-center gap-4">
-            <button onClick={() => setPwOpen(!pwOpen)} className="text-sm text-slate-400 underline">
-              Passwort ändern
-            </button>
-            <button
-              onClick={() => {
-                clearEncryptionKey();
-                supabase.auth.signOut();
-              }}
-              className="text-sm text-slate-400 underline"
-            >
-              Ausloggen
-            </button>
-          </div>
+    <div className="mx-auto max-w-2xl space-y-8">
+      <h2 className="text-2xl font-medium">Meine Dokumente</h2>
+
+      <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-slate-700 bg-slate-800 p-5">
+        <h3 className="text-sm font-medium text-slate-300">Neues Dokument</h3>
+
+        <input
+          placeholder="Titel"
+          required
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+        />
+
+        <textarea
+          placeholder="Inhalt"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          rows={3}
+          className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+        />
+
+        <div>
+          <input
+            placeholder="Sensibles Feld (verschlüsselt)"
+            value={sensitiveField}
+            onChange={(e) => setSensitiveField(e.target.value)}
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          />
+          <p className="mt-1 text-xs text-slate-500">
+            🔒 Wird mit einem aus deinem Passwort abgeleiteten Schlüssel verschlüsselt, bevor es gespeichert wird —
+            auch der Admin kann es nicht lesen. Passwort vergessen bedeutet: dieser Inhalt ist unwiederbringlich weg.
+          </p>
         </div>
 
-        {pwOpen && (
-          <form
-            onSubmit={handlePasswordChange}
-            className="space-y-2 rounded-lg border border-slate-700 bg-slate-800 p-4"
-          >
-            <p className="text-xs text-slate-500">
-              Ändert dein Login-Passwort und verschlüsselt alle deine sensiblen Felder automatisch mit dem neuen
-              Passwort neu. Funktioniert nur, solange du eingeloggt bleibst — bei Zwischen-Logout vorher hier machen,
-              nicht extern bei Supabase.
-            </p>
-            <input
-              type="password"
-              required
-              minLength={8}
-              placeholder="Neues Passwort"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={pwSaving}
-              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
-            >
-              {pwSaving ? "Ändert…" : "Passwort ändern"}
-            </button>
-            {pwInfo && <p className="text-sm text-emerald-400">{pwInfo}</p>}
-          </form>
+        <input
+          placeholder="Tags, kommagetrennt (z. B. urlaub, wichtig)"
+          value={tagsInput}
+          onChange={(e) => setTagsInput(e.target.value)}
+          className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+        />
+
+        <input
+          type="file"
+          onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+          className="w-full text-sm text-slate-400"
+        />
+
+        <label className="flex items-center gap-2 text-sm text-slate-300">
+          <input
+            type="checkbox"
+            checked={isTemplate}
+            onChange={(e) => setIsTemplate(e.target.checked)}
+            className="rounded border-slate-600 bg-slate-900"
+          />
+          Als Vorlage speichern
+        </label>
+
+        <button
+          type="submit"
+          disabled={saving}
+          className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+        >
+          {saving ? "Speichert…" : "Anlegen"}
+        </button>
+      </form>
+
+      {error && <p className="text-sm text-red-400">{error}</p>}
+
+      <div className="space-y-2">
+        <input
+          placeholder="Suche nach Titel oder Inhalt…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+        />
+        {allTags.length > 0 && (
+          <div className="flex flex-wrap gap-1">
+            {allTags.map((tag) => (
+              <button
+                key={tag}
+                onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                className={`rounded px-2 py-0.5 text-xs ${
+                  activeTag === tag ? "bg-slate-100 text-slate-900" : "bg-slate-800 text-slate-300"
+                }`}
+              >
+                {tag}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <div className="space-y-3">
+        {loading && <p className="text-sm text-slate-400">Lädt…</p>}
+        {!loading && documents.length === 0 && <p className="text-sm text-slate-400">Noch keine Dokumente.</p>}
+        {!loading && documents.length > 0 && filteredDocuments.length === 0 && (
+          <p className="text-sm text-slate-400">Keine Dokumente passen zu diesem Filter.</p>
         )}
 
-        <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-slate-700 bg-slate-800 p-5">
-          <h2 className="text-sm font-medium text-slate-300">Neues Dokument</h2>
-
-          <input
-            placeholder="Titel"
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
-
-          <textarea
-            placeholder="Inhalt"
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
-
-          <div>
-            <input
-              placeholder="Sensibles Feld (verschlüsselt)"
-              value={sensitiveField}
-              onChange={(e) => setSensitiveField(e.target.value)}
-              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-            />
-            <p className="mt-1 text-xs text-slate-500">
-              🔒 Wird mit einem aus deinem Passwort abgeleiteten Schlüssel verschlüsselt, bevor es gespeichert wird
-              — auch der Admin kann es nicht lesen. Passwort vergessen bedeutet: dieser Inhalt ist unwiederbringlich weg.
-            </p>
-          </div>
-
-          <input
-            placeholder="Tags, kommagetrennt (z. B. urlaub, wichtig)"
-            value={tagsInput}
-            onChange={(e) => setTagsInput(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
-
-          <input
-            type="file"
-            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-slate-400"
-          />
-
-          <label className="flex items-center gap-2 text-sm text-slate-300">
-            <input
-              type="checkbox"
-              checked={isTemplate}
-              onChange={(e) => setIsTemplate(e.target.checked)}
-              className="rounded border-slate-600 bg-slate-900"
-            />
-            Als Vorlage speichern
-          </label>
-
-          <button
-            type="submit"
-            disabled={saving}
-            className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
-          >
-            {saving ? "Speichert…" : "Anlegen"}
-          </button>
-        </form>
-
-        {error && <p className="text-sm text-red-400">{error}</p>}
-
-        <div className="space-y-2">
-          <input
-            placeholder="Suche nach Titel oder Inhalt…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
-          {allTags.length > 0 && (
-            <div className="flex flex-wrap gap-1">
-              {allTags.map((tag) => (
-                <button
-                  key={tag}
-                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                  className={`rounded px-2 py-0.5 text-xs ${
-                    activeTag === tag ? "bg-slate-100 text-slate-900" : "bg-slate-800 text-slate-300"
-                  }`}
-                >
-                  {tag}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div className="space-y-3">
-          {loading && <p className="text-sm text-slate-400">Lädt…</p>}
-          {!loading && documents.length === 0 && (
-            <p className="text-sm text-slate-400">Noch keine Dokumente.</p>
-          )}
-          {!loading && documents.length > 0 && filteredDocuments.length === 0 && (
-            <p className="text-sm text-slate-400">Keine Dokumente passen zu diesem Filter.</p>
-          )}
-
-          {filteredDocuments.map((doc) => (
-            <div key={doc.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-2">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">{doc.title}</h3>
-                <div className="flex gap-1">
-                  {doc.is_template && (
-                    <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
-                  )}
-                  {doc.owner_id !== userId && (
-                    <span className="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300">Mit dir geteilt</span>
-                  )}
-                </div>
-              </div>
-
-              {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
-
-              {doc.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {doc.tags.map((tag) => (
-                    <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-              )}
-
-              {doc.encrypted_field && (
-                <p className="text-sm text-emerald-300">
-                  🔒{" "}
-                  {decryptedFields[doc.id] ?? (
-                    <span className="text-amber-400">
-                      Gesperrt — {getEncryptionKey() ? "falsches Passwort?" : "bitte aus- und wieder einloggen"}
-                    </span>
-                  )}
-                </p>
-              )}
-
-              <div className="flex gap-3 pt-1">
-                {doc.content && (
-                  <button
-                    onClick={() => handleSummarize(doc)}
-                    disabled={summarizing === doc.id}
-                    className="text-xs text-slate-300 underline disabled:opacity-50"
-                  >
-                    {summarizing === doc.id ? "Fasst zusammen…" : "Mit KI zusammenfassen"}
-                  </button>
-                )}
+        {filteredDocuments.map((doc) => (
+          <div key={doc.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <h3 className="font-medium">{doc.title}</h3>
+              <div className="flex gap-1">
                 {doc.is_template && (
-                  <button
-                    onClick={() => handleInstantiate(doc)}
-                    className="text-xs text-slate-300 underline"
-                  >
-                    Als neues Dokument aus dieser Vorlage starten
-                  </button>
+                  <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
                 )}
-                {doc.storage_path && (
-                  <button
-                    onClick={() => handleDownload(doc)}
-                    className="text-xs text-slate-300 underline"
-                  >
-                    Datei herunterladen
-                  </button>
-                )}
-                {doc.storage_path && doc.owner_id === userId && (
-                  <button
-                    onClick={() => handleRemoveFile(doc)}
-                    disabled={removingFileId === doc.id}
-                    className="text-xs text-red-400 underline disabled:opacity-50"
-                  >
-                    {removingFileId === doc.id ? "Entfernt…" : "Datei entfernen"}
-                  </button>
-                )}
-                {doc.owner_id === userId && (
-                  <button onClick={() => openShare(doc)} className="text-xs text-slate-300 underline">
-                    Teilen
-                  </button>
-                )}
-                {doc.owner_id === userId && (
-                  <button
-                    onClick={() => (editOpenFor === doc.id ? setEditOpenFor(null) : openEdit(doc))}
-                    className="text-xs text-slate-300 underline"
-                  >
-                    Bearbeiten
-                  </button>
-                )}
-                {doc.owner_id === userId && (
-                  <button
-                    onClick={() => handleDelete(doc)}
-                    disabled={deletingId === doc.id}
-                    className="text-xs text-red-400 underline disabled:opacity-50"
-                  >
-                    {deletingId === doc.id ? "Löscht…" : "Löschen"}
-                  </button>
+                {doc.owner_id !== userId && (
+                  <span className="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300">Mit dir geteilt</span>
                 )}
               </div>
+            </div>
 
-              {editOpenFor === doc.id && (
-                <form onSubmit={(e) => handleEditSave(doc, e)} className="space-y-2 pt-1">
-                  <input
-                    required
-                    value={editTitle}
-                    onChange={(e) => setEditTitle(e.target.value)}
-                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-                  />
-                  <textarea
-                    value={editContent}
-                    onChange={(e) => setEditContent(e.target.value)}
-                    rows={3}
-                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-                  />
-                  <input
-                    placeholder="Sensibles Feld"
-                    value={editSensitiveField}
-                    onChange={(e) => setEditSensitiveField(e.target.value)}
-                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-                  />
-                  <input
-                    placeholder="Tags, kommagetrennt"
-                    value={editTagsInput}
-                    onChange={(e) => setEditTagsInput(e.target.value)}
-                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-                  />
-                  <div className="flex gap-2">
-                    <button
-                      type="submit"
-                      disabled={editSaving}
-                      className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
-                    >
-                      {editSaving ? "Speichert…" : "Speichern"}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setEditOpenFor(null)}
-                      className="text-xs text-slate-400 underline"
-                    >
-                      Abbrechen
-                    </button>
-                  </div>
-                </form>
-              )}
+            {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
 
-              {summaries[doc.id] && (
-                <p className="rounded bg-slate-900 p-2 text-sm text-emerald-300">{summaries[doc.id]}</p>
-              )}
+            {doc.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {doc.tags.map((tag) => (
+                  <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            )}
 
-              {shareOpenFor === doc.id && (
-                <>
-                  <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2 pt-1">
-                    <input
-                      type="email"
-                      required
-                      placeholder="E-Mail des Familienmitglieds"
-                      value={shareEmail}
-                      onChange={(e) => setShareEmail(e.target.value)}
-                      className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
-                    />
-                    <button
-                      type="submit"
-                      disabled={sharing}
-                      className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
-                    >
-                      {sharing ? "…" : "Freigeben"}
-                    </button>
-                  </form>
-                  {(shares[doc.id]?.length ?? 0) > 0 && (
-                    <div className="space-y-1 pt-1">
-                      <p className="text-xs text-slate-500">Aktuell freigegeben für:</p>
-                      {shares[doc.id].map((share) => (
-                        <div key={share.userId} className="flex items-center justify-between text-xs">
-                          <span className="text-slate-300">{share.email ?? share.userId}</span>
-                          <button
-                            onClick={() => handleRevokeShare(doc, share)}
-                            className="text-red-400 underline"
-                          >
-                            Entfernen
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
+            {doc.encrypted_field && (
+              <p className="text-sm text-emerald-300">
+                🔒{" "}
+                {decryptedFields[doc.id] ?? (
+                  <span className="text-amber-400">
+                    Gesperrt — {getEncryptionKey() ? "falsches Passwort?" : "bitte aus- und wieder einloggen"}
+                  </span>
+                )}
+              </p>
+            )}
+
+            <div className="flex flex-wrap gap-3 pt-1">
+              {doc.content && (
+                <button
+                  onClick={() => handleSummarize(doc)}
+                  disabled={summarizing === doc.id}
+                  className="text-xs text-slate-300 underline disabled:opacity-50"
+                >
+                  {summarizing === doc.id ? "Fasst zusammen…" : "Mit KI zusammenfassen"}
+                </button>
               )}
-              {shareOpenFor === doc.id && doc.encrypted_field && (
-                <p className="text-xs text-amber-400">
-                  Hinweis: Das sensible Feld ist mit deinem persönlichen Schlüssel verschlüsselt — die freigegebene
-                  Person sieht dort dauerhaft „Gesperrt", nicht nur nach Reload.
-                </p>
+              {doc.is_template && (
+                <button onClick={() => handleInstantiate(doc)} className="text-xs text-slate-300 underline">
+                  Als neues Dokument aus dieser Vorlage starten
+                </button>
               )}
-              {shareOpenFor === doc.id && shareInfo && (
-                <p className="text-xs text-emerald-400">{shareInfo}</p>
+              {doc.storage_path && (
+                <button onClick={() => handleDownload(doc)} className="text-xs text-slate-300 underline">
+                  Datei herunterladen
+                </button>
+              )}
+              {doc.storage_path && doc.owner_id === userId && (
+                <button
+                  onClick={() => handleRemoveFile(doc)}
+                  disabled={removingFileId === doc.id}
+                  className="text-xs text-red-400 underline disabled:opacity-50"
+                >
+                  {removingFileId === doc.id ? "Entfernt…" : "Datei entfernen"}
+                </button>
+              )}
+              {doc.owner_id === userId && (
+                <button onClick={() => openShare(doc)} className="text-xs text-slate-300 underline">
+                  Teilen
+                </button>
+              )}
+              {doc.owner_id === userId && (
+                <button
+                  onClick={() => (editOpenFor === doc.id ? setEditOpenFor(null) : openEdit(doc))}
+                  className="text-xs text-slate-300 underline"
+                >
+                  Bearbeiten
+                </button>
+              )}
+              {doc.owner_id === userId && (
+                <button
+                  onClick={() => handleDelete(doc)}
+                  disabled={deletingId === doc.id}
+                  className="text-xs text-red-400 underline disabled:opacity-50"
+                >
+                  {deletingId === doc.id ? "Löscht…" : "Löschen"}
+                </button>
               )}
             </div>
-          ))}
-        </div>
 
-        {isAdmin && (
-          <div className="border-t border-slate-700 pt-8">
-            <Admin />
+            {editOpenFor === doc.id && (
+              <form onSubmit={(e) => handleEditSave(doc, e)} className="space-y-2 pt-1">
+                <input
+                  required
+                  value={editTitle}
+                  onChange={(e) => setEditTitle(e.target.value)}
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                />
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={3}
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                />
+                <input
+                  placeholder="Sensibles Feld"
+                  value={editSensitiveField}
+                  onChange={(e) => setEditSensitiveField(e.target.value)}
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                />
+                <input
+                  placeholder="Tags, kommagetrennt"
+                  value={editTagsInput}
+                  onChange={(e) => setEditTagsInput(e.target.value)}
+                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                />
+                <div className="flex gap-2">
+                  <button
+                    type="submit"
+                    disabled={editSaving}
+                    className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                  >
+                    {editSaving ? "Speichert…" : "Speichern"}
+                  </button>
+                  <button type="button" onClick={() => setEditOpenFor(null)} className="text-xs text-slate-400 underline">
+                    Abbrechen
+                  </button>
+                </div>
+              </form>
+            )}
+
+            {summaries[doc.id] && (
+              <p className="rounded bg-slate-900 p-2 text-sm text-emerald-300">{summaries[doc.id]}</p>
+            )}
+
+            {shareOpenFor === doc.id && (
+              <>
+                <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2 pt-1">
+                  <input
+                    type="email"
+                    required
+                    placeholder="E-Mail des Familienmitglieds"
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sharing}
+                    className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                  >
+                    {sharing ? "…" : "Freigeben"}
+                  </button>
+                </form>
+                {(shares[doc.id]?.length ?? 0) > 0 && (
+                  <div className="space-y-1 pt-1">
+                    <p className="text-xs text-slate-500">Aktuell freigegeben für:</p>
+                    {shares[doc.id].map((share) => (
+                      <div key={share.userId} className="flex items-center justify-between text-xs">
+                        <span className="text-slate-300">{share.email ?? share.userId}</span>
+                        <button onClick={() => handleRevokeShare(doc, share)} className="text-red-400 underline">
+                          Entfernen
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+            {shareOpenFor === doc.id && doc.encrypted_field && (
+              <p className="text-xs text-amber-400">
+                Hinweis: Das sensible Feld ist mit deinem persönlichen Schlüssel verschlüsselt — die freigegebene
+                Person sieht dort dauerhaft „Gesperrt", nicht nur nach Reload.
+              </p>
+            )}
+            {shareOpenFor === doc.id && shareInfo && <p className="text-xs text-emerald-400">{shareInfo}</p>}
           </div>
-        )}
+        ))}
       </div>
     </div>
   );
