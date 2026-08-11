@@ -8,12 +8,16 @@ import {
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
+  listShares,
+  removeFile,
+  revokeShare,
   shareDocument,
   summarizeDocument,
   updateDocument,
   type DocumentObject,
+  type ShareEntry,
 } from "../lib/objects";
-import { clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
+import { changePassword, clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
 import { isCurrentUserAdmin } from "../lib/admin";
 import { Admin } from "./Admin";
 
@@ -52,6 +56,13 @@ export function Documents({ userId }: DocumentsProps) {
   const [editTagsInput, setEditTagsInput] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [removingFileId, setRemovingFileId] = useState<string | null>(null);
+  const [shares, setShares] = useState<Record<string, ShareEntry[]>>({});
+
+  const [pwOpen, setPwOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [pwSaving, setPwSaving] = useState(false);
+  const [pwInfo, setPwInfo] = useState<string | null>(null);
 
   useEffect(() => {
     isCurrentUserAdmin(userId).then(setIsAdmin).catch(() => setIsAdmin(false));
@@ -140,6 +151,37 @@ export function Documents({ userId }: DocumentsProps) {
     }
   }
 
+  async function handleRemoveFile(doc: DocumentObject) {
+    if (!doc.storage_path) return;
+    if (!window.confirm("Angehängte Datei wirklich entfernen? Das Dokument selbst bleibt erhalten.")) return;
+    setRemovingFileId(doc.id);
+    setError(null);
+    try {
+      await removeFile(doc.id, doc.storage_path);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Datei konnte nicht entfernt werden");
+    } finally {
+      setRemovingFileId(null);
+    }
+  }
+
+  async function openShare(doc: DocumentObject) {
+    if (shareOpenFor === doc.id) {
+      setShareOpenFor(null);
+      return;
+    }
+    setShareOpenFor(doc.id);
+    setShareInfo(null);
+    try {
+      setShares((prev) => ({ ...prev, [doc.id]: [] }));
+      const list = await listShares(doc.id);
+      setShares((prev) => ({ ...prev, [doc.id]: list }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Freigabe-Liste konnte nicht geladen werden");
+    }
+  }
+
   async function handleShare(doc: DocumentObject, e: FormEvent) {
     e.preventDefault();
     setSharing(true);
@@ -149,10 +191,38 @@ export function Documents({ userId }: DocumentsProps) {
       await shareDocument(doc.id, shareEmail);
       setShareInfo(`Freigegeben für ${shareEmail}.`);
       setShareEmail("");
+      const list = await listShares(doc.id);
+      setShares((prev) => ({ ...prev, [doc.id]: list }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Teilen fehlgeschlagen");
     } finally {
       setSharing(false);
+    }
+  }
+
+  async function handleRevokeShare(doc: DocumentObject, share: ShareEntry) {
+    setError(null);
+    try {
+      await revokeShare(doc.id, share.userId);
+      setShares((prev) => ({ ...prev, [doc.id]: prev[doc.id].filter((s) => s.userId !== share.userId) }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Freigabe konnte nicht entfernt werden");
+    }
+  }
+
+  async function handlePasswordChange(e: FormEvent) {
+    e.preventDefault();
+    setPwSaving(true);
+    setError(null);
+    setPwInfo(null);
+    try {
+      await changePassword(userId, newPassword);
+      setPwInfo("Passwort geändert, alle sensiblen Felder neu verschlüsselt.");
+      setNewPassword("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Passwort konnte nicht geändert werden");
+    } finally {
+      setPwSaving(false);
     }
   }
 
@@ -194,7 +264,7 @@ export function Documents({ userId }: DocumentsProps) {
     setDeletingId(doc.id);
     setError(null);
     try {
-      await deleteDocument(doc.id);
+      await deleteDocument(doc.id, doc.storage_path);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
@@ -230,16 +300,51 @@ export function Documents({ userId }: DocumentsProps) {
       <div className="mx-auto max-w-2xl space-y-8">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-medium">Meine Dokumente</h1>
-          <button
-            onClick={() => {
-              clearEncryptionKey();
-              supabase.auth.signOut();
-            }}
-            className="text-sm text-slate-400 underline"
-          >
-            Ausloggen
-          </button>
+          <div className="flex items-center gap-4">
+            <button onClick={() => setPwOpen(!pwOpen)} className="text-sm text-slate-400 underline">
+              Passwort ändern
+            </button>
+            <button
+              onClick={() => {
+                clearEncryptionKey();
+                supabase.auth.signOut();
+              }}
+              className="text-sm text-slate-400 underline"
+            >
+              Ausloggen
+            </button>
+          </div>
         </div>
+
+        {pwOpen && (
+          <form
+            onSubmit={handlePasswordChange}
+            className="space-y-2 rounded-lg border border-slate-700 bg-slate-800 p-4"
+          >
+            <p className="text-xs text-slate-500">
+              Ändert dein Login-Passwort und verschlüsselt alle deine sensiblen Felder automatisch mit dem neuen
+              Passwort neu. Funktioniert nur, solange du eingeloggt bleibst — bei Zwischen-Logout vorher hier machen,
+              nicht extern bei Supabase.
+            </p>
+            <input
+              type="password"
+              required
+              minLength={8}
+              placeholder="Neues Passwort"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={pwSaving}
+              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+            >
+              {pwSaving ? "Ändert…" : "Passwort ändern"}
+            </button>
+            {pwInfo && <p className="text-sm text-emerald-400">{pwInfo}</p>}
+          </form>
+        )}
 
         <form onSubmit={handleCreate} className="space-y-3 rounded-lg border border-slate-700 bg-slate-800 p-5">
           <h2 className="text-sm font-medium text-slate-300">Neues Dokument</h2>
@@ -403,14 +508,17 @@ export function Documents({ userId }: DocumentsProps) {
                     Datei herunterladen
                   </button>
                 )}
-                {doc.owner_id === userId && (
+                {doc.storage_path && doc.owner_id === userId && (
                   <button
-                    onClick={() => {
-                      setShareOpenFor(shareOpenFor === doc.id ? null : doc.id);
-                      setShareInfo(null);
-                    }}
-                    className="text-xs text-slate-300 underline"
+                    onClick={() => handleRemoveFile(doc)}
+                    disabled={removingFileId === doc.id}
+                    className="text-xs text-red-400 underline disabled:opacity-50"
                   >
+                    {removingFileId === doc.id ? "Entfernt…" : "Datei entfernen"}
+                  </button>
+                )}
+                {doc.owner_id === userId && (
+                  <button onClick={() => openShare(doc)} className="text-xs text-slate-300 underline">
                     Teilen
                   </button>
                 )}
@@ -483,23 +591,41 @@ export function Documents({ userId }: DocumentsProps) {
               )}
 
               {shareOpenFor === doc.id && (
-                <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2 pt-1">
-                  <input
-                    type="email"
-                    required
-                    placeholder="E-Mail des Familienmitglieds"
-                    value={shareEmail}
-                    onChange={(e) => setShareEmail(e.target.value)}
-                    className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
-                  />
-                  <button
-                    type="submit"
-                    disabled={sharing}
-                    className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
-                  >
-                    {sharing ? "…" : "Freigeben"}
-                  </button>
-                </form>
+                <>
+                  <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2 pt-1">
+                    <input
+                      type="email"
+                      required
+                      placeholder="E-Mail des Familienmitglieds"
+                      value={shareEmail}
+                      onChange={(e) => setShareEmail(e.target.value)}
+                      className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                    />
+                    <button
+                      type="submit"
+                      disabled={sharing}
+                      className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                    >
+                      {sharing ? "…" : "Freigeben"}
+                    </button>
+                  </form>
+                  {(shares[doc.id]?.length ?? 0) > 0 && (
+                    <div className="space-y-1 pt-1">
+                      <p className="text-xs text-slate-500">Aktuell freigegeben für:</p>
+                      {shares[doc.id].map((share) => (
+                        <div key={share.userId} className="flex items-center justify-between text-xs">
+                          <span className="text-slate-300">{share.email ?? share.userId}</span>
+                          <button
+                            onClick={() => handleRevokeShare(doc, share)}
+                            className="text-red-400 underline"
+                          >
+                            Entfernen
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
               )}
               {shareOpenFor === doc.id && doc.encrypted_field && (
                 <p className="text-xs text-amber-400">

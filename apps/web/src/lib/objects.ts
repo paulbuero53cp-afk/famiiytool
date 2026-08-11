@@ -98,9 +98,31 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
   return data as DocumentObject;
 }
 
-export async function deleteDocument(objectId: string): Promise<void> {
+export async function deleteDocument(objectId: string, storagePath: string | null): Promise<void> {
+  if (storagePath) {
+    // Storage-Löschung vor der DB-Zeile: schlägt die Zeile fehl, bleibt die
+    // Datei wenigstens noch da statt eines toten storage_path-Verweises.
+    const { error: storageError } = await supabase.storage.from("objects").remove([storagePath]);
+    if (storageError) throw storageError;
+  }
+
   const { error } = await supabase.from("objects").delete().eq("id", objectId);
   if (error) throw error;
+}
+
+export async function removeFile(objectId: string, storagePath: string): Promise<DocumentObject> {
+  const { error: storageError } = await supabase.storage.from("objects").remove([storagePath]);
+  if (storageError) throw storageError;
+
+  const { data, error } = await supabase
+    .from("objects")
+    .update({ storage_path: null })
+    .eq("id", objectId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentObject;
 }
 
 // Gibt null zurück, wenn kein Schlüssel vorhanden ist (z. B. nach Reload,
@@ -174,6 +196,31 @@ export async function shareDocument(objectId: string, granteeEmail: string): Pro
     .from("object_permissions")
     .upsert({ object_id: objectId, user_id: granteeId, permission_level: "read" });
 
+  if (error) throw error;
+}
+
+export interface ShareEntry {
+  userId: string;
+  email: string | null;
+}
+
+// Nutzt eine eng begrenzte RPC statt eines direkten profiles-SELECT — normale
+// Nutzer dürfen sonst nur ihr eigenes Profil lesen (siehe 0010_list_shares.sql).
+export async function listShares(objectId: string): Promise<ShareEntry[]> {
+  const { data, error } = await supabase.rpc("list_shares", { p_object_id: objectId });
+  if (error) throw error;
+  return (data ?? []).map((row: { user_id: string; email: string | null }) => ({
+    userId: row.user_id,
+    email: row.email,
+  }));
+}
+
+export async function revokeShare(objectId: string, userId: string): Promise<void> {
+  const { error } = await supabase
+    .from("object_permissions")
+    .delete()
+    .eq("object_id", objectId)
+    .eq("user_id", userId);
   if (error) throw error;
 }
 
