@@ -54,6 +54,35 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
   return data as DocumentObject;
 }
 
+// Binärdatei gehört NIE in die DB-Zeile — landet in Supabase Storage,
+// objects.storage_path hält nur den Verweis (siehe CLAUDE.md).
+// Pfad-Konvention '{owner_id}/{object_id}/{dateiname}' — die Storage-Policy
+// prüft ausschließlich das erste Pfadsegment (siehe 0003_storage.sql).
+export async function attachFile(object: DocumentObject, file: File, ownerId: string): Promise<DocumentObject> {
+  const storagePath = `${ownerId}/${object.id}/${file.name}`;
+
+  const { error: uploadError } = await supabase.storage.from("objects").upload(storagePath, file, {
+    upsert: true,
+  });
+  if (uploadError) throw uploadError;
+
+  const { data, error } = await supabase
+    .from("objects")
+    .update({ storage_path: storagePath })
+    .eq("id", object.id)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentObject;
+}
+
+export async function getFileUrl(storagePath: string): Promise<string> {
+  const { data, error } = await supabase.storage.from("objects").createSignedUrl(storagePath, 60);
+  if (error) throw error;
+  return data.signedUrl;
+}
+
 export async function instantiateTemplate(template: DocumentObject, ownerId: string): Promise<DocumentObject> {
   const { data, error } = await supabase
     .from("objects")

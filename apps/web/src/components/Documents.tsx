@@ -1,7 +1,9 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
 import {
+  attachFile,
   createDocument,
+  getFileUrl,
   instantiateTemplate,
   listMyDocuments,
   summarizeDocument,
@@ -21,6 +23,7 @@ export function Documents({ userId }: DocumentsProps) {
   const [content, setContent] = useState("");
   const [sensitiveField, setSensitiveField] = useState("");
   const [isTemplate, setIsTemplate] = useState(false);
+  const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
 
   const [summaries, setSummaries] = useState<Record<string, string>>({});
@@ -47,11 +50,15 @@ export function Documents({ userId }: DocumentsProps) {
     setSaving(true);
     setError(null);
     try {
-      await createDocument({ title, content, sensitiveField, isTemplate }, userId);
+      const doc = await createDocument({ title, content, sensitiveField, isTemplate }, userId);
+      if (file) {
+        await attachFile(doc, file, userId);
+      }
       setTitle("");
       setContent("");
       setSensitiveField("");
       setIsTemplate(false);
+      setFile(null);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -71,6 +78,17 @@ export function Documents({ userId }: DocumentsProps) {
       setError(err instanceof Error ? err.message : "Zusammenfassung fehlgeschlagen");
     } finally {
       setSummarizing(null);
+    }
+  }
+
+  async function handleDownload(doc: DocumentObject) {
+    if (!doc.storage_path) return;
+    setError(null);
+    try {
+      const url = await getFileUrl(doc.storage_path);
+      window.open(url, "_blank");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Datei konnte nicht geladen werden");
     }
   }
 
@@ -129,6 +147,12 @@ export function Documents({ userId }: DocumentsProps) {
             </p>
           </div>
 
+          <input
+            type="file"
+            onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+            className="w-full text-sm text-slate-400"
+          />
+
           <label className="flex items-center gap-2 text-sm text-slate-300">
             <input
               type="checkbox"
@@ -183,6 +207,14 @@ export function Documents({ userId }: DocumentsProps) {
                     className="text-xs text-slate-300 underline"
                   >
                     Als neues Dokument aus dieser Vorlage starten
+                  </button>
+                )}
+                {doc.storage_path && (
+                  <button
+                    onClick={() => handleDownload(doc)}
+                    className="text-xs text-slate-300 underline"
+                  >
+                    Datei herunterladen
                   </button>
                 )}
               </div>
