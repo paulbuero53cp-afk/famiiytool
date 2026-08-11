@@ -12,6 +12,8 @@ import {
   type DocumentObject,
 } from "../lib/objects";
 import { clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
+import { isCurrentUserAdmin } from "../lib/admin";
+import { Admin } from "./Admin";
 
 interface DocumentsProps {
   userId: string;
@@ -36,6 +38,11 @@ export function Documents({ userId }: DocumentsProps) {
   const [shareEmail, setShareEmail] = useState("");
   const [sharing, setSharing] = useState(false);
   const [shareInfo, setShareInfo] = useState<string | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    isCurrentUserAdmin(userId).then(setIsAdmin).catch(() => setIsAdmin(false));
+  }, [userId]);
 
   async function refresh() {
     setLoading(true);
@@ -323,6 +330,12 @@ export function Documents({ userId }: DocumentsProps) {
             </div>
           ))}
         </div>
+
+        {isAdmin && (
+          <div className="border-t border-slate-700 pt-8">
+            <Admin />
+          </div>
+        )}
       </div>
     </div>
   );
