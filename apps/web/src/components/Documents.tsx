@@ -4,11 +4,13 @@ import {
   attachFile,
   createDocument,
   decryptSensitiveField,
+  deleteDocument,
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
   shareDocument,
   summarizeDocument,
+  updateDocument,
   type DocumentObject,
 } from "../lib/objects";
 import { clearEncryptionKey, getEncryptionKey } from "../lib/encryptionSession";
@@ -42,6 +44,14 @@ export function Documents({ userId }: DocumentsProps) {
   const [sharing, setSharing] = useState(false);
   const [shareInfo, setShareInfo] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+
+  const [editOpenFor, setEditOpenFor] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [editSensitiveField, setEditSensitiveField] = useState("");
+  const [editTagsInput, setEditTagsInput] = useState("");
+  const [editSaving, setEditSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   useEffect(() => {
     isCurrentUserAdmin(userId).then(setIsAdmin).catch(() => setIsAdmin(false));
@@ -143,6 +153,53 @@ export function Documents({ userId }: DocumentsProps) {
       setError(err instanceof Error ? err.message : "Teilen fehlgeschlagen");
     } finally {
       setSharing(false);
+    }
+  }
+
+  function openEdit(doc: DocumentObject) {
+    setEditOpenFor(doc.id);
+    setEditTitle(doc.title);
+    setEditContent(doc.content ?? "");
+    setEditSensitiveField(decryptedFields[doc.id] ?? "");
+    setEditTagsInput(doc.tags.join(", "));
+    setError(null);
+  }
+
+  async function handleEditSave(doc: DocumentObject, e: FormEvent) {
+    e.preventDefault();
+    setEditSaving(true);
+    setError(null);
+    try {
+      const tags = editTagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      await updateDocument(doc.id, {
+        title: editTitle,
+        content: editContent,
+        sensitiveField: editSensitiveField,
+        tags,
+      });
+      setEditOpenFor(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  async function handleDelete(doc: DocumentObject) {
+    if (!window.confirm(`"${doc.title}" wirklich unwiderruflich löschen?`)) return;
+    setDeletingId(doc.id);
+    setError(null);
+    try {
+      await deleteDocument(doc.id);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -357,7 +414,69 @@ export function Documents({ userId }: DocumentsProps) {
                     Teilen
                   </button>
                 )}
+                {doc.owner_id === userId && (
+                  <button
+                    onClick={() => (editOpenFor === doc.id ? setEditOpenFor(null) : openEdit(doc))}
+                    className="text-xs text-slate-300 underline"
+                  >
+                    Bearbeiten
+                  </button>
+                )}
+                {doc.owner_id === userId && (
+                  <button
+                    onClick={() => handleDelete(doc)}
+                    disabled={deletingId === doc.id}
+                    className="text-xs text-red-400 underline disabled:opacity-50"
+                  >
+                    {deletingId === doc.id ? "Löscht…" : "Löschen"}
+                  </button>
+                )}
               </div>
+
+              {editOpenFor === doc.id && (
+                <form onSubmit={(e) => handleEditSave(doc, e)} className="space-y-2 pt-1">
+                  <input
+                    required
+                    value={editTitle}
+                    onChange={(e) => setEditTitle(e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                  <textarea
+                    value={editContent}
+                    onChange={(e) => setEditContent(e.target.value)}
+                    rows={3}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                  <input
+                    placeholder="Sensibles Feld"
+                    value={editSensitiveField}
+                    onChange={(e) => setEditSensitiveField(e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                  <input
+                    placeholder="Tags, kommagetrennt"
+                    value={editTagsInput}
+                    onChange={(e) => setEditTagsInput(e.target.value)}
+                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="submit"
+                      disabled={editSaving}
+                      className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                    >
+                      {editSaving ? "Speichert…" : "Speichern"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditOpenFor(null)}
+                      className="text-xs text-slate-400 underline"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </form>
+              )}
 
               {summaries[doc.id] && (
                 <p className="rounded bg-slate-900 p-2 text-sm text-emerald-300">{summaries[doc.id]}</p>

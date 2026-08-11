@@ -65,6 +65,44 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
   return data as DocumentObject;
 }
 
+export interface UpdateDocumentInput {
+  title: string;
+  content: string;
+  sensitiveField: string;
+  tags: string[];
+}
+
+export async function updateDocument(objectId: string, input: UpdateDocumentInput): Promise<DocumentObject> {
+  let encryptedField: string | null = null;
+  if (input.sensitiveField) {
+    const key = getEncryptionKey();
+    if (!key) {
+      throw new Error("Verschlüsselung nicht bereit — bitte einmal aus- und wieder einloggen.");
+    }
+    encryptedField = await encryptText(key, input.sensitiveField);
+  }
+
+  const { data, error } = await supabase
+    .from("objects")
+    .update({
+      title: input.title,
+      content: input.content,
+      encrypted_field: encryptedField,
+      tags: input.tags,
+    })
+    .eq("id", objectId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentObject;
+}
+
+export async function deleteDocument(objectId: string): Promise<void> {
+  const { error } = await supabase.from("objects").delete().eq("id", objectId);
+  if (error) throw error;
+}
+
 // Gibt null zurück, wenn kein Schlüssel vorhanden ist (z. B. nach Reload,
 // siehe encryptionSession.ts) oder das Feld leer ist — die UI zeigt dann
 // einen Gesperrt-Hinweis statt eines Fehlers.
