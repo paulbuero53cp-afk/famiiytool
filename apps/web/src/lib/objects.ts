@@ -120,6 +120,23 @@ export async function instantiateTemplate(template: DocumentObject, ownerId: str
   return data as DocumentObject;
 }
 
+// Teilen ist immer explizit und pro Objekt (siehe CLAUDE.md) — sucht die
+// user_id über die eng begrenzte RPC-Function (kein direktes Durchsuchen der
+// Nutzerliste möglich), legt dann den object_permissions-Eintrag an.
+export async function shareDocument(objectId: string, granteeEmail: string): Promise<void> {
+  const { data: granteeId, error: lookupError } = await supabase.rpc("find_user_id_by_email", {
+    p_email: granteeEmail,
+  });
+  if (lookupError) throw lookupError;
+  if (!granteeId) throw new Error(`Kein Nutzer mit E-Mail "${granteeEmail}" gefunden.`);
+
+  const { error } = await supabase
+    .from("object_permissions")
+    .upsert({ object_id: objectId, user_id: granteeId, permission_level: "read" });
+
+  if (error) throw error;
+}
+
 export async function summarizeDocument(objectId: string, text: string): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;

@@ -7,6 +7,7 @@ import {
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
+  shareDocument,
   summarizeDocument,
   type DocumentObject,
 } from "../lib/objects";
@@ -31,6 +32,10 @@ export function Documents({ userId }: DocumentsProps) {
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [summarizing, setSummarizing] = useState<string | null>(null);
   const [decryptedFields, setDecryptedFields] = useState<Record<string, string>>({});
+  const [shareOpenFor, setShareOpenFor] = useState<string | null>(null);
+  const [shareEmail, setShareEmail] = useState("");
+  const [sharing, setSharing] = useState(false);
+  const [shareInfo, setShareInfo] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -107,6 +112,22 @@ export function Documents({ userId }: DocumentsProps) {
       window.open(url, "_blank");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Datei konnte nicht geladen werden");
+    }
+  }
+
+  async function handleShare(doc: DocumentObject, e: FormEvent) {
+    e.preventDefault();
+    setSharing(true);
+    setError(null);
+    setShareInfo(null);
+    try {
+      await shareDocument(doc.id, shareEmail);
+      setShareInfo(`Freigegeben für ${shareEmail}.`);
+      setShareEmail("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Teilen fehlgeschlagen");
+    } finally {
+      setSharing(false);
     }
   }
 
@@ -205,9 +226,14 @@ export function Documents({ userId }: DocumentsProps) {
             <div key={doc.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">{doc.title}</h3>
-                {doc.is_template && (
-                  <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
-                )}
+                <div className="flex gap-1">
+                  {doc.is_template && (
+                    <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
+                  )}
+                  {doc.owner_id !== userId && (
+                    <span className="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300">Mit dir geteilt</span>
+                  )}
+                </div>
               </div>
 
               {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
@@ -249,10 +275,50 @@ export function Documents({ userId }: DocumentsProps) {
                     Datei herunterladen
                   </button>
                 )}
+                {doc.owner_id === userId && (
+                  <button
+                    onClick={() => {
+                      setShareOpenFor(shareOpenFor === doc.id ? null : doc.id);
+                      setShareInfo(null);
+                    }}
+                    className="text-xs text-slate-300 underline"
+                  >
+                    Teilen
+                  </button>
+                )}
               </div>
 
               {summaries[doc.id] && (
                 <p className="rounded bg-slate-900 p-2 text-sm text-emerald-300">{summaries[doc.id]}</p>
+              )}
+
+              {shareOpenFor === doc.id && (
+                <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2 pt-1">
+                  <input
+                    type="email"
+                    required
+                    placeholder="E-Mail des Familienmitglieds"
+                    value={shareEmail}
+                    onChange={(e) => setShareEmail(e.target.value)}
+                    className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                  />
+                  <button
+                    type="submit"
+                    disabled={sharing}
+                    className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                  >
+                    {sharing ? "…" : "Freigeben"}
+                  </button>
+                </form>
+              )}
+              {shareOpenFor === doc.id && doc.encrypted_field && (
+                <p className="text-xs text-amber-400">
+                  Hinweis: Das sensible Feld ist mit deinem persönlichen Schlüssel verschlüsselt — die freigegebene
+                  Person sieht dort dauerhaft „Gesperrt", nicht nur nach Reload.
+                </p>
+              )}
+              {shareOpenFor === doc.id && shareInfo && (
+                <p className="text-xs text-emerald-400">{shareInfo}</p>
               )}
             </div>
           ))}
