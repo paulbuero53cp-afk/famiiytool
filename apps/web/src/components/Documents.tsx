@@ -28,8 +28,11 @@ export function Documents({ userId }: DocumentsProps) {
   const [content, setContent] = useState("");
   const [sensitiveField, setSensitiveField] = useState("");
   const [isTemplate, setIsTemplate] = useState(false);
+  const [tagsInput, setTagsInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+  const [activeTag, setActiveTag] = useState<string | null>(null);
 
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [summarizing, setSummarizing] = useState<string | null>(null);
@@ -80,7 +83,11 @@ export function Documents({ userId }: DocumentsProps) {
     setSaving(true);
     setError(null);
     try {
-      const doc = await createDocument({ title, content, sensitiveField, isTemplate }, userId);
+      const tags = tagsInput
+        .split(",")
+        .map((t) => t.trim())
+        .filter(Boolean);
+      const doc = await createDocument({ title, content, sensitiveField, isTemplate, tags }, userId);
       if (file) {
         await attachFile(doc, file, userId);
       }
@@ -88,6 +95,7 @@ export function Documents({ userId }: DocumentsProps) {
       setContent("");
       setSensitiveField("");
       setIsTemplate(false);
+      setTagsInput("");
       setFile(null);
       await refresh();
     } catch (err) {
@@ -148,6 +156,18 @@ export function Documents({ userId }: DocumentsProps) {
     }
   }
 
+  const allTags = [...new Set(documents.flatMap((doc) => doc.tags))].sort();
+
+  const filteredDocuments = documents.filter((doc) => {
+    const searchLower = search.trim().toLowerCase();
+    const matchesSearch =
+      !searchLower ||
+      doc.title.toLowerCase().includes(searchLower) ||
+      (doc.content ?? "").toLowerCase().includes(searchLower);
+    const matchesTag = !activeTag || doc.tags.includes(activeTag);
+    return matchesSearch && matchesTag;
+  });
+
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 px-6 py-10">
       <div className="mx-auto max-w-2xl space-y-8">
@@ -197,6 +217,13 @@ export function Documents({ userId }: DocumentsProps) {
           </div>
 
           <input
+            placeholder="Tags, kommagetrennt (z. B. urlaub, wichtig)"
+            value={tagsInput}
+            onChange={(e) => setTagsInput(e.target.value)}
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          />
+
+          <input
             type="file"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="w-full text-sm text-slate-400"
@@ -223,13 +250,40 @@ export function Documents({ userId }: DocumentsProps) {
 
         {error && <p className="text-sm text-red-400">{error}</p>}
 
+        <div className="space-y-2">
+          <input
+            placeholder="Suche nach Titel oder Inhalt…"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          />
+          {allTags.length > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {allTags.map((tag) => (
+                <button
+                  key={tag}
+                  onClick={() => setActiveTag(activeTag === tag ? null : tag)}
+                  className={`rounded px-2 py-0.5 text-xs ${
+                    activeTag === tag ? "bg-slate-100 text-slate-900" : "bg-slate-800 text-slate-300"
+                  }`}
+                >
+                  {tag}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
         <div className="space-y-3">
           {loading && <p className="text-sm text-slate-400">Lädt…</p>}
           {!loading && documents.length === 0 && (
             <p className="text-sm text-slate-400">Noch keine Dokumente.</p>
           )}
+          {!loading && documents.length > 0 && filteredDocuments.length === 0 && (
+            <p className="text-sm text-slate-400">Keine Dokumente passen zu diesem Filter.</p>
+          )}
 
-          {documents.map((doc) => (
+          {filteredDocuments.map((doc) => (
             <div key={doc.id} className="rounded-lg border border-slate-700 bg-slate-800 p-4 space-y-2">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium">{doc.title}</h3>
@@ -244,6 +298,16 @@ export function Documents({ userId }: DocumentsProps) {
               </div>
 
               {doc.content && <p className="text-sm text-slate-400">{doc.content}</p>}
+
+              {doc.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {doc.tags.map((tag) => (
+                    <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                      {tag}
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {doc.encrypted_field && (
                 <p className="text-sm text-emerald-300">
