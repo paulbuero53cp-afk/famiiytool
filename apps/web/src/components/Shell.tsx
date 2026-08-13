@@ -132,15 +132,15 @@ export function Shell({ userId }: ShellProps) {
 
       {layoutMode === "sidebar" ? (
         <div className="flex">
-          <nav className="w-48 shrink-0 border-r border-neutral-200 p-4 space-y-1">
+          <nav className="w-48 shrink-0 bg-neutral-900 p-4 space-y-1">
             {visibleModules.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setActiveModuleId(m.id)}
                 className={`flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm ${
                   activeModuleId === m.id
-                    ? "bg-neutral-900 text-white"
-                    : "text-neutral-600 hover:bg-neutral-100"
+                    ? "bg-white text-neutral-900"
+                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
                 }`}
               >
                 <span>{m.icon}</span>
