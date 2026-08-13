@@ -71,7 +71,7 @@ export function Admin() {
   return (
     <div className="space-y-8">
       {error && (
-        <p className="rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
+        <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>
       )}
       {loading && <p className="text-sm text-neutral-500">Lädt…</p>}
 
@@ -81,7 +81,7 @@ export function Admin() {
           {profiles.map((p) => (
             <div
               key={p.id}
-              className="flex items-center justify-between rounded-2xl border border-neutral-200 bg-white p-3 shadow-sm"
+              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm"
             >
               <span className="text-sm text-neutral-900">{p.email ?? p.id}</span>
               <div className="flex items-center gap-2">
@@ -103,7 +103,7 @@ export function Admin() {
         <p className="text-sm text-neutral-500">
           Gesamt (letzte 100 Aufrufe): <span className="text-emerald-700">${totalCost.toFixed(4)}</span>
         </p>
-        <div className="max-h-64 overflow-y-auto rounded-2xl border border-neutral-200">
+        <div className="max-h-64 overflow-y-auto rounded-xl border border-neutral-200">
           <table className="w-full text-xs">
             <thead className="bg-neutral-50 text-neutral-500">
               <tr>
@@ -138,7 +138,7 @@ export function Admin() {
         </p>
         <form
           onSubmit={handleBreakGlass}
-          className="space-y-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm"
+          className="space-y-2 rounded-xl border border-neutral-200 bg-white p-4 shadow-sm"
         >
           <input
             placeholder="Objekt-ID"
@@ -164,7 +164,7 @@ export function Admin() {
         </form>
 
         {breakGlassResult && (
-          <pre className="overflow-x-auto rounded-2xl bg-neutral-900 p-3 text-xs text-emerald-300">
+          <pre className="overflow-x-auto rounded-xl bg-neutral-900 p-3 text-xs text-emerald-300">
             {JSON.stringify(breakGlassResult, null, 2)}
           </pre>
         )}

@@ -71,6 +71,68 @@ export async function summarize(params: SummarizeParams): Promise<SummarizeResul
   };
 }
 
+export interface GenerateParams {
+  apiKey: string;
+  prompt: string;
+  context?: string;
+  model?: string;
+}
+
+export interface GenerateResult {
+  content: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  estimatedCostUsd: number;
+}
+
+// Spiegelbildlich zu summarize(): aus einem kurzen Prompt wird Dokumentinhalt
+// generiert statt vorhandener Text zusammengefasst (siehe apps/api/functions/llm-generate).
+export async function generate(params: GenerateParams): Promise<GenerateResult> {
+  const model = params.model ?? "claude-sonnet-5";
+
+  const instruction = params.context
+    ? `Kontext aus bereits vorhandenen Dokumenten:\n${params.context}\n\nAnweisung:\n${params.prompt}`
+    : params.prompt;
+
+  const response = await fetch(ANTHROPIC_API_URL, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      "x-api-key": params.apiKey,
+      "anthropic-version": ANTHROPIC_VERSION,
+    },
+    body: JSON.stringify({
+      model,
+      max_tokens: 1536,
+      messages: [
+        {
+          role: "user",
+          content: `Schreibe basierend auf folgender Anweisung einen vollständigen Dokumenttext auf Deutsch. Gib nur den fertigen Text zurück, ohne Einleitung oder Meta-Kommentar:\n\n${instruction}`,
+        },
+      ],
+    }),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Claude API Fehler (${response.status}): ${errorBody}`);
+  }
+
+  const data = await response.json();
+  const content = data.content?.[0]?.text ?? "";
+  const inputTokens: number = data.usage?.input_tokens ?? 0;
+  const outputTokens: number = data.usage?.output_tokens ?? 0;
+
+  return {
+    content,
+    model,
+    inputTokens,
+    outputTokens,
+    estimatedCostUsd: estimateCostUsd(model, inputTokens, outputTokens),
+  };
+}
+
 export function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = PRICING_PER_MILLION_TOKENS[model];
   if (!pricing) return 0;

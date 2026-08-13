@@ -4,6 +4,7 @@ import {
   createDocument,
   decryptSensitiveField,
   deleteDocument,
+  generateDocumentContent,
   getFileUrl,
   instantiateTemplate,
   listMyDocuments,
@@ -49,9 +50,9 @@ const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
 const inputClass =
   "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none";
 const actionButtonClass =
-  "inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200";
+  "inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-200";
 const dangerButtonClass =
-  "inline-flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50";
+  "inline-flex items-center gap-1 rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50";
 
 export function Documents({
   userId,
@@ -71,6 +72,9 @@ export function Documents({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [aiOpen, setAiOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -185,6 +189,34 @@ export function Documents({
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
     } finally {
       setSaving(false);
+    }
+  }
+
+  // Baut Kontext aus bereits vorhandenen Dokumenten (gleicher Modul-/Projekt-/
+  // Ordner-Scope, aus documents-State — keine zusätzliche Abfrage nötig),
+  // damit die KI-Generierung Stil/Fakten aus vorhandenen Einträgen aufgreifen
+  // kann. Auf wenige, gekürzte Einträge begrenzt, um Tokens zu sparen.
+  function buildAiContext(): string | undefined {
+    const withContent = documents.filter((d) => d.content).slice(0, 5);
+    if (withContent.length === 0) return undefined;
+    return withContent
+      .map((d) => `„${d.title}": ${(d.content ?? "").slice(0, 400)}`)
+      .join("\n\n");
+  }
+
+  async function handleGenerate() {
+    if (!aiPrompt.trim()) return;
+    setAiGenerating(true);
+    setError(null);
+    try {
+      const generated = await generateDocumentContent(aiPrompt, buildAiContext());
+      setContent(generated);
+      setAiOpen(false);
+      setAiPrompt("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "KI-Erstellung fehlgeschlagen");
+    } finally {
+      setAiGenerating(false);
     }
   }
 
@@ -358,8 +390,8 @@ export function Documents({
     return (
       <div
         key={doc.id}
-        className={`rounded-2xl border p-4 ${
-          doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white shadow-sm"
+        className={`rounded-xl border p-3.5 ${
+          doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white hover:shadow-sm"
         }`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -417,7 +449,7 @@ export function Documents({
           {onOpen && (
             <button
               onClick={() => onOpen(doc)}
-              className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2.5 py-1 text-xs text-white hover:bg-neutral-800"
+              className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2 py-0.5 text-xs text-white hover:bg-neutral-800"
             >
               📂 Öffnen
             </button>
@@ -601,22 +633,25 @@ export function Documents({
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8">
-      <h2 className="font-display text-3xl">{heading}</h2>
-
-      {!createOpen && (
-        <button
-          onClick={() => setCreateOpen(true)}
-          className="flex items-center gap-2 rounded-full border border-dashed border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-600 hover:border-neutral-900 hover:text-neutral-900"
-        >
-          ➕ Neuer Eintrag
-        </button>
-      )}
+    <div className="mx-auto max-w-2xl space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display text-2xl">{heading}</h2>
+        {!createOpen && (
+          <button
+            onClick={() => setCreateOpen(true)}
+            title="Neuer Eintrag"
+            aria-label="Neuer Eintrag"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
+          >
+            +
+          </button>
+        )}
+      </div>
 
       {createOpen && (
       <form
         onSubmit={handleCreate}
-        className="space-y-3 rounded-2xl border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-5 shadow-sm"
+        className="space-y-2.5 rounded-xl border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
       >
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
@@ -631,7 +666,40 @@ export function Documents({
         </div>
 
         <div>
-          <label className={fieldLabelClass}>Inhalt</label>
+          <div className="mb-1 flex items-center justify-between">
+            <label className={`${fieldLabelClass} mb-0`}>Inhalt</label>
+            <button
+              type="button"
+              onClick={() => setAiOpen(!aiOpen)}
+              className="text-xs text-neutral-500 hover:text-neutral-900"
+            >
+              ✨ Mit KI erstellen
+            </button>
+          </div>
+
+          {aiOpen && (
+            <div className="mb-2 space-y-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2.5">
+              <textarea
+                value={aiPrompt}
+                onChange={(e) => setAiPrompt(e.target.value)}
+                placeholder="Kurze Anweisung, worum es im Dokument gehen soll…"
+                rows={2}
+                className={inputClass}
+              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerate}
+                  disabled={aiGenerating || !aiPrompt.trim()}
+                  className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                >
+                  {aiGenerating ? "Generiert…" : "Generieren"}
+                </button>
+                <span className="text-xs text-neutral-400">Füllt das Inhalt-Feld, danach weiter editierbar.</span>
+              </div>
+            </div>
+          )}
+
           <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={3} className={inputClass} />
         </div>
 
@@ -713,7 +781,7 @@ export function Documents({
       )}
 
       {error && (
-        <p className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <span>⚠️</span>
           <span>{error}</span>
         </p>
@@ -751,7 +819,7 @@ export function Documents({
       {loading && (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="animate-pulse rounded-2xl border border-neutral-200 bg-white p-4">
+            <div key={i} className="animate-pulse rounded-xl border border-neutral-200 bg-white p-3.5">
               <div className="h-4 w-1/3 rounded bg-neutral-200" />
               <div className="mt-3 h-3 w-2/3 rounded bg-neutral-100" />
               <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />

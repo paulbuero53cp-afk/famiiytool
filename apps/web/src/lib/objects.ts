@@ -23,7 +23,8 @@ export interface DocumentObject {
   amount: number | null;
   // Siehe 0012_folders_and_milestones.sql — Ordner sind objects-Einträge mit
   // type='folder', Dokumente in einem Unterordner tragen dessen id hier.
-  // Ordner selbst liegen nie ineinander (bewusst nur 1 Ebene).
+  // Ordner können wieder folder_id auf einen anderen Ordner setzen (echte
+  // Baumstruktur, kein Tiefenlimit im Schema).
   folder_id: string | null;
   // Primär für type='milestone' — Zieldatum bzw. Erledigt-Status.
   due_date: string | null;
@@ -297,4 +298,30 @@ export async function summarizeDocument(objectId: string, text: string): Promise
 
   const { summary } = await response.json();
   return summary as string;
+}
+
+// Spiegelbildlich zu summarizeDocument: aus einem kurzen Prompt wird neuer
+// Dokumentinhalt generiert (siehe apps/api/functions/llm-generate). Kein
+// objectId nötig — das Dokument existiert zu diesem Zeitpunkt noch nicht.
+export async function generateDocumentContent(prompt: string, context?: string): Promise<string> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Nicht eingeloggt");
+
+  const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/llm-generate`;
+  const response = await fetch(functionsUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ prompt, context }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`KI-Erstellung fehlgeschlagen: ${await response.text()}`);
+  }
+
+  const { content } = await response.json();
+  return content as string;
 }
