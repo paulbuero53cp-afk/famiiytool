@@ -53,43 +53,49 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-100">
+    <div className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-900">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-slate-700 bg-slate-800 p-6 space-y-4"
+        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4"
       >
-        <h1 className="text-xl font-medium">Familientool — {mode === "signIn" ? "Login" : "Registrierung"}</h1>
+        <h1 className="font-display text-2xl">Familientool — {mode === "signIn" ? "Login" : "Registrierung"}</h1>
 
         <div className="space-y-1">
-          <label className="block text-sm text-slate-400">E-Mail</label>
+          <label className="block text-sm text-neutral-500">E-Mail</label>
           <input
             type="email"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
           />
         </div>
 
         <div className="space-y-1">
-          <label className="block text-sm text-slate-400">Passwort</label>
+          <label className="block text-sm text-neutral-500">Passwort</label>
           <input
             type="password"
             required
             minLength={8}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+            className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
           />
         </div>
 
-        {error && <p className="text-sm text-red-400">{error}</p>}
-        {info && <p className="text-sm text-emerald-400">{info}</p>}
+        {error && (
+          <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">{error}</p>
+        )}
+        {info && (
+          <p className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+            {info}
+          </p>
+        )}
 
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded bg-slate-100 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+          className="w-full rounded-full bg-neutral-900 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
         >
           {mode === "signIn" ? "Einloggen" : "Registrieren"}
         </button>
@@ -97,7 +103,7 @@ export function Login() {
         <button
           type="button"
           onClick={() => setMode(mode === "signIn" ? "signUp" : "signIn")}
-          className="w-full text-center text-sm text-slate-400 underline"
+          className="w-full text-center text-sm text-neutral-500 underline"
         >
           {mode === "signIn" ? "Noch keinen Account? Registrieren" : "Schon registriert? Einloggen"}
         </button>

@@ -36,11 +36,13 @@ interface DocumentsProps {
   emptyLabel?: string;
 }
 
-const fieldLabelClass = "block text-xs font-medium text-slate-400 mb-1";
+const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
+const inputClass =
+  "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none";
 const actionButtonClass =
-  "inline-flex items-center gap-1 rounded-md bg-slate-700/50 px-2 py-1 text-xs text-slate-300 hover:bg-slate-700";
+  "inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200";
 const dangerButtonClass =
-  "inline-flex items-center gap-1 rounded-md border border-red-500/40 px-2 py-1 text-xs text-red-400 hover:bg-red-500/10";
+  "inline-flex items-center gap-1 rounded-full border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50";
 
 export function Documents({
   userId,
@@ -336,15 +338,15 @@ export function Documents({
     return (
       <div
         key={doc.id}
-        className={`rounded-lg border p-4 ${
-          doc.is_template ? "border-dashed border-indigo-500/40 bg-slate-800/60" : "border-slate-700 bg-slate-800"
+        className={`rounded-2xl border p-4 ${
+          doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white shadow-sm"
         }`}
       >
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-medium leading-snug">{doc.title}</h3>
+          <h3 className="font-medium leading-snug text-neutral-900">{doc.title}</h3>
           <div className="flex shrink-0 items-center gap-2">
             {showAmount && doc.amount !== null && (
-              <span className="text-base font-semibold text-emerald-300">{doc.amount.toFixed(2)} €</span>
+              <span className="text-base font-semibold text-emerald-700">{doc.amount.toFixed(2)} €</span>
             )}
           </div>
         </div>
@@ -352,13 +354,13 @@ export function Documents({
         {(doc.is_template || doc.owner_id !== userId || (showProjectPicker && projectName(doc.project_id))) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {doc.is_template && (
-              <span className="rounded bg-indigo-500/20 px-2 py-0.5 text-xs text-indigo-300">Vorlage</span>
+              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">Vorlage</span>
             )}
             {doc.owner_id !== userId && (
-              <span className="rounded bg-sky-500/20 px-2 py-0.5 text-xs text-sky-300">Mit dir geteilt</span>
+              <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700">Mit dir geteilt</span>
             )}
             {showProjectPicker && projectName(doc.project_id) && (
-              <span className="text-xs text-slate-500">🗂️ {projectName(doc.project_id)}</span>
+              <span className="text-xs text-neutral-500">🗂️ {projectName(doc.project_id)}</span>
             )}
           </div>
         )}
@@ -368,7 +370,7 @@ export function Documents({
             {doc.tags
               .filter((t) => t !== presetTag)
               .map((tag) => (
-                <span key={tag} className="rounded bg-slate-700 px-2 py-0.5 text-xs text-slate-300">
+                <span key={tag} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
                   {tag}
                 </span>
               ))}
@@ -376,13 +378,13 @@ export function Documents({
         )}
 
         {(doc.content || doc.encrypted_field) && (
-          <div className="mt-3 space-y-1.5 rounded-md bg-slate-900/50 p-2.5">
-            {doc.content && <p className="text-sm text-slate-300">{doc.content}</p>}
+          <div className="mt-3 space-y-1.5 rounded-xl bg-neutral-50 p-2.5">
+            {doc.content && <p className="text-sm text-neutral-700">{doc.content}</p>}
             {doc.encrypted_field && (
-              <p className="text-sm text-emerald-300">
+              <p className="text-sm text-emerald-700">
                 🔒{" "}
                 {decryptedFields[doc.id] ?? (
-                  <span className="text-amber-400">
+                  <span className="text-amber-600">
                     Gesperrt — {getEncryptionKey() ? "falsches Passwort?" : "bitte aus- und wieder einloggen"}
                   </span>
                 )}
@@ -445,15 +447,10 @@ export function Documents({
         </div>
 
         {editOpenFor === doc.id && (
-          <form onSubmit={(e) => handleEditSave(doc, e)} className="mt-3 space-y-2 border-t border-slate-700 pt-3">
+          <form onSubmit={(e) => handleEditSave(doc, e)} className="mt-3 space-y-2 border-t border-neutral-200 pt-3">
             <div>
               <label className={fieldLabelClass}>Titel</label>
-              <input
-                required
-                value={editTitle}
-                onChange={(e) => setEditTitle(e.target.value)}
-                className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
-              />
+              <input required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={inputClass} />
             </div>
             <div>
               <label className={fieldLabelClass}>Inhalt</label>
@@ -461,7 +458,7 @@ export function Documents({
                 value={editContent}
                 onChange={(e) => setEditContent(e.target.value)}
                 rows={3}
-                className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                className={inputClass}
               />
             </div>
             <div>
@@ -469,7 +466,7 @@ export function Documents({
               <input
                 value={editSensitiveField}
                 onChange={(e) => setEditSensitiveField(e.target.value)}
-                className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                className={inputClass}
               />
             </div>
             {showAmount && (
@@ -482,9 +479,9 @@ export function Documents({
                     min="0"
                     value={editAmountInput}
                     onChange={(e) => setEditAmountInput(e.target.value)}
-                    className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 pr-7 text-sm"
+                    className={`${inputClass} pr-7`}
                   />
-                  <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-500">
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-neutral-500">
                     €
                   </span>
                 </div>
@@ -496,7 +493,7 @@ export function Documents({
                 <select
                   value={editProjectId}
                   onChange={(e) => setEditProjectId(e.target.value)}
-                  className="w-full rounded border border-slate-600 bg-slate-900 px-2 py-1 text-sm"
+                  className={inputClass}
                 >
                   <option value="">Keinem Projekt zuordnen</option>
                   {projects.map((p) => (
@@ -515,11 +512,11 @@ export function Documents({
               <button
                 type="submit"
                 disabled={editSaving}
-                className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {editSaving ? "Speichert…" : "Speichern"}
               </button>
-              <button type="button" onClick={() => setEditOpenFor(null)} className="text-xs text-slate-400 underline">
+              <button type="button" onClick={() => setEditOpenFor(null)} className="text-xs text-neutral-500 underline">
                 Abbrechen
               </button>
             </div>
@@ -527,11 +524,11 @@ export function Documents({
         )}
 
         {summaries[doc.id] && (
-          <p className="mt-2 rounded bg-slate-900 p-2 text-sm text-emerald-300">{summaries[doc.id]}</p>
+          <p className="mt-2 rounded-xl bg-emerald-50 p-2 text-sm text-emerald-700">{summaries[doc.id]}</p>
         )}
 
         {shareOpenFor === doc.id && (
-          <div className="mt-3 border-t border-slate-700 pt-3">
+          <div className="mt-3 border-t border-neutral-200 pt-3">
             <form onSubmit={(e) => handleShare(doc, e)} className="flex gap-2">
               <input
                 type="email"
@@ -539,23 +536,23 @@ export function Documents({
                 placeholder="E-Mail des Familienmitglieds"
                 value={shareEmail}
                 onChange={(e) => setShareEmail(e.target.value)}
-                className="flex-1 rounded border border-slate-600 bg-slate-900 px-2 py-1 text-xs"
+                className="flex-1 rounded-lg border border-neutral-300 bg-white px-2 py-1.5 text-xs focus:border-neutral-900 focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={sharing}
-                className="rounded bg-slate-100 px-3 py-1 text-xs font-medium text-slate-900 disabled:opacity-50"
+                className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {sharing ? "…" : "Freigeben"}
               </button>
             </form>
             {(shares[doc.id]?.length ?? 0) > 0 && (
               <div className="space-y-1 pt-2">
-                <p className="text-xs text-slate-500">Aktuell freigegeben für:</p>
+                <p className="text-xs text-neutral-500">Aktuell freigegeben für:</p>
                 {shares[doc.id].map((share) => (
                   <div key={share.userId} className="flex items-center justify-between text-xs">
-                    <span className="text-slate-300">{share.email ?? share.userId}</span>
-                    <button onClick={() => handleRevokeShare(doc, share)} className="text-red-400 underline">
+                    <span className="text-neutral-700">{share.email ?? share.userId}</span>
+                    <button onClick={() => handleRevokeShare(doc, share)} className="text-red-600 underline">
                       Entfernen
                     </button>
                   </div>
@@ -563,12 +560,12 @@ export function Documents({
               </div>
             )}
             {doc.encrypted_field && (
-              <p className="mt-2 text-xs text-amber-400">
+              <p className="mt-2 text-xs text-amber-600">
                 Hinweis: Das sensible Feld ist mit deinem persönlichen Schlüssel verschlüsselt — die freigegebene
                 Person sieht dort dauerhaft „Gesperrt", nicht nur nach Reload.
               </p>
             )}
-            {shareInfo && <p className="mt-2 text-xs text-emerald-400">{shareInfo}</p>}
+            {shareInfo && <p className="mt-2 text-xs text-emerald-700">{shareInfo}</p>}
           </div>
         )}
       </div>
@@ -577,42 +574,28 @@ export function Documents({
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <h2 className="text-2xl font-medium">{heading}</h2>
+      <h2 className="font-display text-3xl">{heading}</h2>
 
       <form
         onSubmit={handleCreate}
-        className="space-y-3 rounded-lg border-t-2 border-t-slate-400 border-x border-b border-slate-700 bg-slate-800/70 p-5"
+        className="space-y-3 rounded-2xl border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-5 shadow-sm"
       >
-        <h3 className="text-sm font-medium text-slate-300">Neuer Eintrag</h3>
+        <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
 
         <div>
           <label className={fieldLabelClass}>Titel</label>
-          <input
-            required
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
+          <input required value={title} onChange={(e) => setTitle(e.target.value)} className={inputClass} />
         </div>
 
         <div>
           <label className={fieldLabelClass}>Inhalt</label>
-          <textarea
-            value={content}
-            onChange={(e) => setContent(e.target.value)}
-            rows={3}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
+          <textarea value={content} onChange={(e) => setContent(e.target.value)} rows={3} className={inputClass} />
         </div>
 
         <div>
           <label className={fieldLabelClass}>Sensibles Feld (verschlüsselt)</label>
-          <input
-            value={sensitiveField}
-            onChange={(e) => setSensitiveField(e.target.value)}
-            className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-          />
-          <p className="mt-1 text-xs text-slate-500">
+          <input value={sensitiveField} onChange={(e) => setSensitiveField(e.target.value)} className={inputClass} />
+          <p className="mt-1 text-xs text-neutral-500">
             🔒 Wird mit einem aus deinem Passwort abgeleiteten Schlüssel verschlüsselt, bevor es gespeichert wird —
             auch der Admin kann es nicht lesen. Passwort vergessen bedeutet: dieser Inhalt ist unwiederbringlich weg.
           </p>
@@ -629,9 +612,9 @@ export function Documents({
                 placeholder="0,00"
                 value={amountInput}
                 onChange={(e) => setAmountInput(e.target.value)}
-                className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 pr-8 text-sm"
+                className={`${inputClass} pr-8`}
               />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-slate-500">
+              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm text-neutral-500">
                 €
               </span>
             </div>
@@ -641,11 +624,7 @@ export function Documents({
         {showProjectPicker && projects.length > 0 && (
           <div>
             <label className={fieldLabelClass}>Projekt</label>
-            <select
-              value={projectId}
-              onChange={(e) => setProjectId(e.target.value)}
-              className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
-            >
+            <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}>
               <option value="">Keinem Projekt zuordnen</option>
               {projects.map((p) => (
                 <option key={p.id} value={p.id}>
@@ -666,16 +645,16 @@ export function Documents({
           <input
             type="file"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="w-full text-sm text-slate-400"
+            className="w-full text-sm text-neutral-500"
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-slate-300">
+        <label className="flex items-center gap-2 text-sm text-neutral-700">
           <input
             type="checkbox"
             checked={isTemplate}
             onChange={(e) => setIsTemplate(e.target.checked)}
-            className="rounded border-slate-600 bg-slate-900"
+            className="rounded border-neutral-300"
           />
           Als Vorlage speichern
         </label>
@@ -683,14 +662,14 @@ export function Documents({
         <button
           type="submit"
           disabled={saving}
-          className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+          className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
         >
           {saving ? "Speichert…" : "Anlegen"}
         </button>
       </form>
 
       {error && (
-        <p className="flex items-start gap-2 rounded-lg border border-red-500/40 bg-red-500/10 p-3 text-sm text-red-300">
+        <p className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <span>⚠️</span>
           <span>{error}</span>
         </p>
@@ -701,7 +680,7 @@ export function Documents({
           placeholder="Suche nach Titel oder Inhalt…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded border border-slate-600 bg-slate-900 px-3 py-2 text-sm"
+          className="w-full rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm focus:border-neutral-900 focus:outline-none"
         />
         {allTags.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -709,8 +688,8 @@ export function Documents({
               <button
                 key={tag}
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                className={`rounded px-2 py-0.5 text-xs ${
-                  activeTag === tag ? "bg-slate-100 text-slate-900" : "bg-slate-800 text-slate-300"
+                className={`rounded-full px-2.5 py-0.5 text-xs ${
+                  activeTag === tag ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
                 }`}
               >
                 {tag}
@@ -719,8 +698,8 @@ export function Documents({
           </div>
         )}
         {showSum && filteredDocuments.length > 0 && (
-          <p className="text-sm text-slate-300">
-            Summe: <span className="font-medium text-emerald-300">{sum.toFixed(2)} €</span>
+          <p className="text-sm text-neutral-600">
+            Summe: <span className="font-medium text-emerald-700">{sum.toFixed(2)} €</span>
           </p>
         )}
       </div>
@@ -728,30 +707,32 @@ export function Documents({
       {loading && (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="animate-pulse rounded-lg border border-slate-700 bg-slate-800 p-4">
-              <div className="h-4 w-1/3 rounded bg-slate-700" />
-              <div className="mt-3 h-3 w-2/3 rounded bg-slate-700/70" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-slate-700/70" />
+            <div key={i} className="animate-pulse rounded-2xl border border-neutral-200 bg-white p-4">
+              <div className="h-4 w-1/3 rounded bg-neutral-200" />
+              <div className="mt-3 h-3 w-2/3 rounded bg-neutral-100" />
+              <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />
             </div>
           ))}
         </div>
       )}
 
-      {!loading && documents.length === 0 && <p className="text-sm text-slate-400">{emptyLabel}</p>}
+      {!loading && documents.length === 0 && <p className="text-sm text-neutral-500">{emptyLabel}</p>}
       {!loading && documents.length > 0 && filteredDocuments.length === 0 && (
-        <p className="text-sm text-slate-400">Keine Einträge passen zu diesem Filter.</p>
+        <p className="text-sm text-neutral-500">Keine Einträge passen zu diesem Filter.</p>
       )}
 
       {!loading && realEntries.length > 0 && (
         <div className="space-y-3">
-          {templateEntries.length > 0 && <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Einträge</h3>}
+          {templateEntries.length > 0 && (
+            <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-400">Einträge</h3>
+          )}
           {realEntries.map(renderCard)}
         </div>
       )}
 
       {!loading && templateEntries.length > 0 && (
         <div className="space-y-3">
-          <h3 className="text-xs font-medium uppercase tracking-wide text-slate-500">Vorlagen</h3>
+          <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-400">Vorlagen</h3>
           {templateEntries.map(renderCard)}
         </div>
       )}
