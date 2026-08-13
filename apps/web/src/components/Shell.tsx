@@ -67,18 +67,18 @@ export function Shell({ userId }: ShellProps) {
   const ActiveComponent = visibleModules.find((m) => m.id === activeModuleId)?.component;
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100">
-      <div className="flex items-center justify-between border-b border-slate-800 px-6 py-3">
-        <h1 className="text-lg font-medium">Familientool</h1>
+    <div className="min-h-screen bg-neutral-50 text-neutral-900">
+      <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3">
+        <h1 className="font-display text-xl">Familientool</h1>
         <div className="flex items-center gap-4">
           <button
             onClick={toggleLayout}
-            className="text-sm text-slate-400 underline"
+            className="text-sm text-neutral-500 underline"
             title="Zwischen Seitenleiste und Kachelmenü umschalten"
           >
             {layoutMode === "sidebar" ? "🔳 Kachelansicht" : "☰ Seitenleiste"}
           </button>
-          <button onClick={() => setPwOpen(!pwOpen)} className="text-sm text-slate-400 underline">
+          <button onClick={() => setPwOpen(!pwOpen)} className="text-sm text-neutral-500 underline">
             Passwort ändern
           </button>
           <button
@@ -86,7 +86,7 @@ export function Shell({ userId }: ShellProps) {
               clearEncryptionKey();
               supabase.auth.signOut();
             }}
-            className="text-sm text-slate-400 underline"
+            className="text-sm text-neutral-500 underline"
           >
             Ausloggen
           </button>
@@ -94,9 +94,9 @@ export function Shell({ userId }: ShellProps) {
       </div>
 
       {pwOpen && (
-        <div className="border-b border-slate-800 px-6 py-4">
+        <div className="border-b border-neutral-200 bg-white px-6 py-4">
           <form onSubmit={handlePasswordChange} className="mx-auto max-w-md space-y-2">
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-neutral-500">
               Ändert dein Login-Passwort und verschlüsselt alle deine sensiblen Felder automatisch mit dem neuen
               Passwort neu.
             </p>
@@ -107,30 +107,40 @@ export function Shell({ userId }: ShellProps) {
               placeholder="Neues Passwort"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded border border-slate-600 bg-slate-800 px-3 py-2 text-sm"
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
             />
             <button
               type="submit"
               disabled={pwSaving}
-              className="rounded bg-slate-100 px-4 py-2 text-sm font-medium text-slate-900 disabled:opacity-50"
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {pwSaving ? "Ändert…" : "Passwort ändern"}
             </button>
-            {pwInfo && <p className="text-sm text-emerald-400">{pwInfo}</p>}
-            {pwError && <p className="text-sm text-red-400">{pwError}</p>}
+            {pwInfo && (
+              <p className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+                {pwInfo}
+              </p>
+            )}
+            {pwError && (
+              <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">
+                {pwError}
+              </p>
+            )}
           </form>
         </div>
       )}
 
       {layoutMode === "sidebar" ? (
         <div className="flex">
-          <nav className="w-48 shrink-0 border-r border-slate-800 p-4 space-y-1">
+          <nav className="w-48 shrink-0 border-r border-neutral-200 p-4 space-y-1">
             {visibleModules.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setActiveModuleId(m.id)}
-                className={`flex w-full items-center gap-2 rounded px-3 py-2 text-left text-sm ${
-                  activeModuleId === m.id ? "bg-slate-800 text-slate-100" : "text-slate-400 hover:bg-slate-800/50"
+                className={`flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm ${
+                  activeModuleId === m.id
+                    ? "bg-neutral-900 text-white"
+                    : "text-neutral-600 hover:bg-neutral-100"
                 }`}
               >
                 <span>{m.icon}</span>
@@ -146,7 +156,7 @@ export function Shell({ userId }: ShellProps) {
         <main className="p-6">
           {ActiveComponent ? (
             <div className="mx-auto max-w-2xl space-y-4">
-              <button onClick={() => setActiveModuleId(null)} className="text-sm text-slate-400 underline">
+              <button onClick={() => setActiveModuleId(null)} className="text-sm text-neutral-500 underline">
                 🏠 Zur Übersicht
               </button>
               <ActiveComponent userId={userId} />
@@ -157,7 +167,7 @@ export function Shell({ userId }: ShellProps) {
                 <button
                   key={m.id}
                   onClick={() => setActiveModuleId(m.id)}
-                  className="flex flex-col items-center gap-2 rounded-lg border border-slate-700 bg-slate-800 p-6 hover:bg-slate-700"
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm hover:shadow-md"
                 >
                   <span className="text-3xl">{m.icon}</span>
                   <span className="text-sm">{m.label}</span>

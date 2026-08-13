@@ -7,7 +7,7 @@ function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900 text-slate-400">
+      <div className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-500">
         Lädt…
       </div>
     );
