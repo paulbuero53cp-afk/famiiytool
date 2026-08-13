@@ -21,6 +21,13 @@ export interface DocumentObject {
   // Generisches Betrags-Feld, primär für type='expense' (Finanzverwaltung) —
   // keine eigene Tabelle, bewusst wiederverwendbar für andere Typen.
   amount: number | null;
+  // Siehe 0012_folders_and_milestones.sql — Ordner sind objects-Einträge mit
+  // type='folder', Dokumente in einem Unterordner tragen dessen id hier.
+  // Ordner selbst liegen nie ineinander (bewusst nur 1 Ebene).
+  folder_id: string | null;
+  // Primär für type='milestone' — Zieldatum bzw. Erledigt-Status.
+  due_date: string | null;
+  done: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -34,6 +41,8 @@ export interface NewDocumentInput {
   tags: string[];
   projectId: string | null;
   amount: number | null;
+  folderId?: string | null;
+  dueDate?: string | null;
 }
 
 export async function listMyDocuments(): Promise<DocumentObject[]> {
@@ -81,6 +90,8 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
       tags: input.tags,
       project_id: input.projectId,
       amount: input.amount,
+      folder_id: input.folderId ?? null,
+      due_date: input.dueDate ?? null,
     })
     .select()
     .single();
@@ -96,6 +107,7 @@ export interface UpdateDocumentInput {
   tags: string[];
   projectId: string | null;
   amount: number | null;
+  dueDate?: string | null;
 }
 
 export async function updateDocument(objectId: string, input: UpdateDocumentInput): Promise<DocumentObject> {
@@ -117,6 +129,7 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
       tags: input.tags,
       project_id: input.projectId,
       amount: input.amount,
+      ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
     })
     .eq("id", objectId)
     .select()
@@ -124,6 +137,14 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
 
   if (error) throw error;
   return data as DocumentObject;
+}
+
+// Kompaktes Update für den Erledigt-Status eines Meilensteins — eigene
+// Funktion statt updateDocument, weil eine Checkbox nicht Titel/Inhalt/Tags
+// im Formular mitschleppen soll.
+export async function setMilestoneDone(objectId: string, done: boolean): Promise<void> {
+  const { error } = await supabase.from("objects").update({ done }).eq("id", objectId);
+  if (error) throw error;
 }
 
 export async function deleteDocument(objectId: string, storagePath: string | null): Promise<void> {

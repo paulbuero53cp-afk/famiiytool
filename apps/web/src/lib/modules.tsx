@@ -8,9 +8,11 @@
 // anderen Vorgaben (siehe CLAUDE.md, Datenmodell-Grundsatz: ein Objekt-
 // Schema statt Silos pro Feature).
 
-import type { ComponentType } from "react";
+import { useState, type ComponentType } from "react";
 import { Documents } from "../components/Documents";
 import { Admin } from "../components/Admin";
+import { ProjectWorkspace } from "../components/ProjectWorkspace";
+import type { DocumentObject } from "./objects";
 
 export interface ModuleDefinition {
   id: string;
@@ -20,12 +22,22 @@ export interface ModuleDefinition {
   adminOnly?: boolean;
 }
 
+// Projekte-Liste ist der Einstiegspunkt; ein Klick auf "Öffnen" wechselt in
+// den Projekt-Workspace (Meilensteine/Ordner/Dokumente, siehe
+// components/ProjectWorkspace.tsx) statt nur inline zu bearbeiten.
 function ProjectsModule({ userId }: { userId: string }) {
+  const [openProject, setOpenProject] = useState<DocumentObject | null>(null);
+
+  if (openProject) {
+    return <ProjectWorkspace userId={userId} project={openProject} onBack={() => setOpenProject(null)} />;
+  }
+
   return (
     <Documents
       userId={userId}
       objectType="project"
       heading="Projekte"
+      onOpen={setOpenProject}
       emptyLabel="Noch keine Projekte — leg eins an, z. B. Urlaub, Hausbau oder Masterarbeit."
     />
   );

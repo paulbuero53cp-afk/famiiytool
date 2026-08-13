@@ -34,6 +34,15 @@ interface DocumentsProps {
   showProjectPicker?: boolean;
   showSum?: boolean;
   emptyLabel?: string;
+  // Für die Einbettung im Projekt-Workspace (siehe ProjectWorkspace.tsx):
+  // lockedProjectId setzt project_id beim Anlegen fest (Projekt-Auswahl
+  // entfällt), folderId filtert zusätzlich nach Unterordner (null = Ebene 1
+  // des Projekts). Ohne diese Props unverändertes Verhalten.
+  lockedProjectId?: string;
+  folderId?: string | null;
+  // Zeigt pro Karte einen zusätzlichen "Öffnen"-Button (aktuell nur für die
+  // Projekte-Übersicht, die damit in den Projekt-Workspace wechselt).
+  onOpen?: (doc: DocumentObject) => void;
 }
 
 const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
@@ -53,11 +62,15 @@ export function Documents({
   showProjectPicker = false,
   showSum = false,
   emptyLabel = "Noch keine Einträge.",
+  lockedProjectId,
+  folderId,
+  onOpen,
 }: DocumentsProps) {
   const [documents, setDocuments] = useState<DocumentObject[]>([]);
   const [projects, setProjects] = useState<DocumentObject[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -98,7 +111,12 @@ export function Documents({
         listMyDocuments(),
         showProjectPicker ? listMyProjects() : Promise.resolve([]),
       ]);
-      const docs = allDocs.filter((d) => d.type === objectType);
+      const docs = allDocs.filter((d) => {
+        if (d.type !== objectType) return false;
+        if (lockedProjectId !== undefined && d.project_id !== lockedProjectId) return false;
+        if (folderId !== undefined && (d.folder_id ?? null) !== folderId) return false;
+        return true;
+      });
       setDocuments(docs);
       setProjects(allProjects);
 
@@ -126,7 +144,7 @@ export function Documents({
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [objectType]);
+  }, [objectType, lockedProjectId, folderId]);
 
   async function handleCreate(e: FormEvent) {
     e.preventDefault();
@@ -144,8 +162,9 @@ export function Documents({
           sensitiveField,
           isTemplate,
           tags: finalTags,
-          projectId: projectId || null,
+          projectId: lockedProjectId ?? (projectId || null),
           amount: amountInput ? Number(amountInput) : null,
+          folderId: folderId ?? null,
         },
         userId,
       );
@@ -160,6 +179,7 @@ export function Documents({
       setAmountInput("");
       setProjectId("");
       setFile(null);
+      setCreateOpen(false);
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
@@ -394,6 +414,14 @@ export function Documents({
         )}
 
         <div className="mt-3 flex flex-wrap gap-2">
+          {onOpen && (
+            <button
+              onClick={() => onOpen(doc)}
+              className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2.5 py-1 text-xs text-white hover:bg-neutral-800"
+            >
+              📂 Öffnen
+            </button>
+          )}
           {doc.content && (
             <button
               onClick={() => handleSummarize(doc)}
@@ -487,7 +515,7 @@ export function Documents({
                 </div>
               </div>
             )}
-            {showProjectPicker && projects.length > 0 && (
+            {showProjectPicker && !lockedProjectId && projects.length > 0 && (
               <div>
                 <label className={fieldLabelClass}>Projekt</label>
                 <select
@@ -576,11 +604,26 @@ export function Documents({
     <div className="mx-auto max-w-2xl space-y-8">
       <h2 className="font-display text-3xl">{heading}</h2>
 
+      {!createOpen && (
+        <button
+          onClick={() => setCreateOpen(true)}
+          className="flex items-center gap-2 rounded-full border border-dashed border-neutral-300 bg-white px-4 py-2 text-sm text-neutral-600 hover:border-neutral-900 hover:text-neutral-900"
+        >
+          ➕ Neuer Eintrag
+        </button>
+      )}
+
+      {createOpen && (
       <form
         onSubmit={handleCreate}
         className="space-y-3 rounded-2xl border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-5 shadow-sm"
       >
-        <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
+        <div className="flex items-center justify-between">
+          <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
+          <button type="button" onClick={() => setCreateOpen(false)} className="text-xs text-neutral-400 hover:text-neutral-700">
+            ✕
+          </button>
+        </div>
 
         <div>
           <label className={fieldLabelClass}>Titel</label>
@@ -621,7 +664,7 @@ export function Documents({
           </div>
         )}
 
-        {showProjectPicker && projects.length > 0 && (
+        {showProjectPicker && !lockedProjectId && projects.length > 0 && (
           <div>
             <label className={fieldLabelClass}>Projekt</label>
             <select value={projectId} onChange={(e) => setProjectId(e.target.value)} className={inputClass}>
@@ -667,6 +710,7 @@ export function Documents({
           {saving ? "Speichert…" : "Anlegen"}
         </button>
       </form>
+      )}
 
       {error && (
         <p className="flex items-start gap-2 rounded-2xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
