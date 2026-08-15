@@ -29,6 +29,14 @@ export interface DocumentObject {
   // Primär für type='milestone' — Zieldatum bzw. Erledigt-Status.
   due_date: string | null;
   done: boolean;
+  // Siehe 0013_music.sql — primär für type='track' (Interpret/Album, Genre
+  // liegt in tags). artist/album bewusst eigene Spalten statt Tag-Hack, da
+  // strukturiert sortiert/angezeigt wird (gleiche Linie wie amount/due_date).
+  artist: string | null;
+  album: string | null;
+  // Primär für type='playlist' — geordnetes Array von Track-IDs, kein
+  // Join-Table (siehe 0013_music.sql).
+  track_ids: string[];
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +52,8 @@ export interface NewDocumentInput {
   amount: number | null;
   folderId?: string | null;
   dueDate?: string | null;
+  artist?: string | null;
+  album?: string | null;
 }
 
 export async function listMyDocuments(): Promise<DocumentObject[]> {
@@ -93,6 +103,8 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
       amount: input.amount,
       folder_id: input.folderId ?? null,
       due_date: input.dueDate ?? null,
+      ...(input.artist !== undefined ? { artist: input.artist } : {}),
+      ...(input.album !== undefined ? { album: input.album } : {}),
     })
     .select()
     .single();
@@ -109,6 +121,8 @@ export interface UpdateDocumentInput {
   projectId: string | null;
   amount: number | null;
   dueDate?: string | null;
+  artist?: string | null;
+  album?: string | null;
 }
 
 export async function updateDocument(objectId: string, input: UpdateDocumentInput): Promise<DocumentObject> {
@@ -131,6 +145,8 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
       project_id: input.projectId,
       amount: input.amount,
       ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
+      ...(input.artist !== undefined ? { artist: input.artist } : {}),
+      ...(input.album !== undefined ? { album: input.album } : {}),
     })
     .eq("id", objectId)
     .select()
@@ -145,6 +161,13 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
 // im Formular mitschleppen soll.
 export async function setMilestoneDone(objectId: string, done: boolean): Promise<void> {
   const { error } = await supabase.from("objects").update({ done }).eq("id", objectId);
+  if (error) throw error;
+}
+
+// Playlist-Reihenfolge/-Inhalt ist nur das track_ids-Array — eigene, schlanke
+// Funktion statt updateDocument, das Titel/Inhalt/Tags erwartet.
+export async function updatePlaylistTracks(playlistId: string, trackIds: string[]): Promise<void> {
+  const { error } = await supabase.from("objects").update({ track_ids: trackIds }).eq("id", playlistId);
   if (error) throw error;
 }
 
@@ -208,8 +231,11 @@ export async function attachFile(object: DocumentObject, file: File, ownerId: st
   return data as DocumentObject;
 }
 
-export async function getFileUrl(storagePath: string): Promise<string> {
-  const { data, error } = await supabase.storage.from("objects").createSignedUrl(storagePath, 60);
+// expiresInSeconds default bleibt bei 60 für einmalige Downloads — der
+// Musik-Player übergibt einen längeren Wert (siehe lib/player.tsx), da ein
+// Song länger als 60s laufen/gebuffert werden kann.
+export async function getFileUrl(storagePath: string, expiresInSeconds = 60): Promise<string> {
+  const { data, error } = await supabase.storage.from("objects").createSignedUrl(storagePath, expiresInSeconds);
   if (error) throw error;
   return data.signedUrl;
 }
