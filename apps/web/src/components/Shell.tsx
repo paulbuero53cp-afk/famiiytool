@@ -71,18 +71,24 @@ export function Shell({ userId }: ShellProps) {
   return (
     <PlayerProvider>
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
-      <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3">
-        <h1 className="font-display text-xl">Familientool</h1>
-        <div className="flex items-center gap-4">
+      <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3 sm:px-6">
+        <h1 className="font-display text-lg sm:text-xl">Familientool</h1>
+        <div className="flex items-center gap-3 sm:gap-4">
           <button
             onClick={toggleLayout}
             className="text-sm text-neutral-500 underline"
             title="Zwischen Seitenleiste und Kachelmenü umschalten"
           >
-            {layoutMode === "sidebar" ? "🔳 Kachelansicht" : "☰ Seitenleiste"}
+            {layoutMode === "sidebar" ? "🔳" : "☰"}
+            <span className="hidden sm:inline"> {layoutMode === "sidebar" ? "Kachelansicht" : "Seitenleiste"}</span>
           </button>
-          <button onClick={() => setPwOpen(!pwOpen)} className="text-sm text-neutral-500 underline">
-            Passwort ändern
+          <button
+            onClick={() => setPwOpen(!pwOpen)}
+            className="text-sm text-neutral-500 underline"
+            title="Passwort ändern"
+          >
+            <span className="sm:hidden">🔑</span>
+            <span className="hidden sm:inline">Passwort ändern</span>
           </button>
           <button
             onClick={() => {
@@ -90,14 +96,16 @@ export function Shell({ userId }: ShellProps) {
               supabase.auth.signOut();
             }}
             className="text-sm text-neutral-500 underline"
+            title="Ausloggen"
           >
-            Ausloggen
+            <span className="sm:hidden">🚪</span>
+            <span className="hidden sm:inline">Ausloggen</span>
           </button>
         </div>
       </div>
 
       {pwOpen && (
-        <div className="border-b border-neutral-200 bg-white px-6 py-4">
+        <div className="border-b border-neutral-200 bg-white px-4 py-4 sm:px-6">
           <form onSubmit={handlePasswordChange} className="mx-auto max-w-md space-y-2">
             <p className="text-xs text-neutral-500">
               Ändert dein Login-Passwort und verschlüsselt alle deine sensiblen Felder automatisch mit dem neuen
@@ -134,13 +142,16 @@ export function Shell({ userId }: ShellProps) {
       )}
 
       {layoutMode === "sidebar" ? (
-        <div className="flex">
-          <nav className="w-48 shrink-0 bg-neutral-900 p-4 space-y-1">
+        <div className="flex flex-col sm:flex-row">
+          {/* Auf Mobile: horizontal scrollbare Pill-Leiste oben statt fester
+              192px-Sidebar, die auf schmalen Screens fast die Hälfte des
+              Inhalts wegnehmen würde. Ab sm: wieder die klassische Sidebar. */}
+          <nav className="flex shrink-0 gap-1 overflow-x-auto bg-neutral-900 p-2 sm:w-48 sm:flex-col sm:space-y-1 sm:overflow-visible sm:p-4">
             {visibleModules.map((m) => (
               <button
                 key={m.id}
                 onClick={() => setActiveModuleId(m.id)}
-                className={`flex w-full items-center gap-2 rounded-full px-3 py-2 text-left text-sm ${
+                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-left text-sm sm:w-full ${
                   activeModuleId === m.id
                     ? "bg-white text-neutral-900"
                     : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
@@ -151,12 +162,12 @@ export function Shell({ userId }: ShellProps) {
               </button>
             ))}
           </nav>
-          <main className="flex-1 p-6 pb-20">
+          <main className="min-w-0 flex-1 px-4 pt-4 pb-20 sm:px-6 sm:pt-6">
             {ActiveComponent && <ActiveComponent userId={userId} />}
           </main>
         </div>
       ) : (
-        <main className="p-6 pb-20">
+        <main className="px-4 pt-4 pb-20 sm:px-6 sm:pt-6">
           {ActiveComponent ? (
             <div className="mx-auto max-w-2xl space-y-4">
               <button onClick={() => setActiveModuleId(null)} className="text-sm text-neutral-500 underline">
@@ -165,12 +176,12 @@ export function Shell({ userId }: ShellProps) {
               <ActiveComponent userId={userId} />
             </div>
           ) : (
-            <div className="mx-auto grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-3">
+            <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
               {visibleModules.map((m) => (
                 <button
                   key={m.id}
                   onClick={() => setActiveModuleId(m.id)}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm hover:shadow-md"
+                  className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
                 >
                   <span className="text-3xl">{m.icon}</span>
                   <span className="text-sm">{m.label}</span>
