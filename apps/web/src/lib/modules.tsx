@@ -12,6 +12,7 @@ import { useState, type ComponentType } from "react";
 import { Documents } from "../components/Documents";
 import { Admin } from "../components/Admin";
 import { ProjectWorkspace } from "../components/ProjectWorkspace";
+import { Music } from "../components/Music";
 import type { DocumentObject } from "./objects";
 
 export interface ModuleDefinition {
@@ -86,5 +87,6 @@ export const modules: ModuleDefinition[] = [
   { id: "finance", label: "Finanzen", icon: "💶", component: FinanceModule },
   { id: "house", label: "Haus", icon: "🏠", component: HouseModule },
   { id: "school", label: "Schulhelfer", icon: "🎒", component: SchoolModule },
+  { id: "music", label: "Musik", icon: "🎵", component: Music },
   { id: "admin", label: "Admin", icon: "⚙️", component: Admin, adminOnly: true },
 ];

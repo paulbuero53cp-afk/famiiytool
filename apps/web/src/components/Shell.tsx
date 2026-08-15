@@ -3,6 +3,8 @@ import { supabase } from "../lib/supabaseClient";
 import { changePassword, clearEncryptionKey } from "../lib/encryptionSession";
 import { isCurrentUserAdmin } from "../lib/admin";
 import { modules } from "../lib/modules";
+import { PlayerProvider } from "../lib/player";
+import { MusicPlayerBar } from "./MusicPlayerBar";
 
 interface ShellProps {
   userId: string;
@@ -67,6 +69,7 @@ export function Shell({ userId }: ShellProps) {
   const ActiveComponent = visibleModules.find((m) => m.id === activeModuleId)?.component;
 
   return (
+    <PlayerProvider>
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-6 py-3">
         <h1 className="font-display text-xl">Familientool</h1>
@@ -148,12 +151,12 @@ export function Shell({ userId }: ShellProps) {
               </button>
             ))}
           </nav>
-          <main className="flex-1 p-6">
+          <main className="flex-1 p-6 pb-20">
             {ActiveComponent && <ActiveComponent userId={userId} />}
           </main>
         </div>
       ) : (
-        <main className="p-6">
+        <main className="p-6 pb-20">
           {ActiveComponent ? (
             <div className="mx-auto max-w-2xl space-y-4">
               <button onClick={() => setActiveModuleId(null)} className="text-sm text-neutral-500 underline">
@@ -177,6 +180,8 @@ export function Shell({ userId }: ShellProps) {
           )}
         </main>
       )}
+      <MusicPlayerBar />
     </div>
+    </PlayerProvider>
   );
 }
