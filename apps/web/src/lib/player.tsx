@@ -11,10 +11,13 @@ interface PlayerContextValue {
   isPlaying: boolean;
   loading: boolean;
   error: string | null;
+  currentTime: number;
+  duration: number;
   playTrack: (track: DocumentObject, queue?: DocumentObject[]) => void;
   togglePlay: () => void;
   next: () => void;
   prev: () => void;
+  seek: (time: number) => void;
   audioRef: React.RefObject<HTMLAudioElement | null>;
 }
 
@@ -31,6 +34,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(0);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
   const current = currentIndex >= 0 ? (queue[currentIndex] ?? null) : null;
@@ -40,6 +45,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     if (!track?.storage_path) return;
     setLoading(true);
     setError(null);
+    setCurrentTime(0);
+    setDuration(0);
     try {
       const url = await getFileUrl(track.storage_path, PLAYBACK_URL_EXPIRY_SECONDS);
       const audio = audioRef.current;
@@ -87,10 +94,32 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
     void loadAndPlay(currentIndex - 1, queue);
   }
 
+  function seek(time: number) {
+    const audio = audioRef.current;
+    if (!audio || !Number.isFinite(time)) return;
+    audio.currentTime = time;
+    setCurrentTime(time);
+  }
+
   const value = useMemo(
-    () => ({ queue, currentIndex, current, isPlaying, loading, error, playTrack, togglePlay, next, prev, audioRef }),
+    () => ({
+      queue,
+      currentIndex,
+      current,
+      isPlaying,
+      loading,
+      error,
+      currentTime,
+      duration,
+      playTrack,
+      togglePlay,
+      next,
+      prev,
+      seek,
+      audioRef,
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [queue, currentIndex, current, isPlaying, loading, error],
+    [queue, currentIndex, current, isPlaying, loading, error, currentTime, duration],
   );
 
   return (
@@ -101,6 +130,8 @@ export function PlayerProvider({ children }: { children: ReactNode }) {
         onEnded={next}
         onPause={() => setIsPlaying(false)}
         onPlay={() => setIsPlaying(true)}
+        onTimeUpdate={(e) => setCurrentTime(e.currentTarget.currentTime)}
+        onLoadedMetadata={(e) => setDuration(e.currentTarget.duration)}
         className="hidden"
       />
     </PlayerContext.Provider>
