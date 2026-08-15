@@ -162,12 +162,12 @@ export function Shell({ userId }: ShellProps) {
               </button>
             ))}
           </nav>
-          <main className="min-w-0 flex-1 px-4 pt-4 pb-20 sm:px-6 sm:pt-6">
+          <main className="min-w-0 flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6">
             {ActiveComponent && <ActiveComponent userId={userId} />}
           </main>
         </div>
       ) : (
-        <main className="px-4 pt-4 pb-20 sm:px-6 sm:pt-6">
+        <main className="px-4 pt-4 pb-28 sm:px-6 sm:pt-6">
           {ActiveComponent ? (
             <div className="mx-auto max-w-2xl space-y-4">
               <button onClick={() => setActiveModuleId(null)} className="text-sm text-neutral-500 underline">
