@@ -429,9 +429,24 @@ const EXTRACTABLE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image
 const MAX_EXTRACT_FILE_SIZE = 8 * 1024 * 1024;
 
 export interface ExtractedMetadata {
+  documentType: string;
   title: string;
   tags: string[];
   dueDate: string | null;
+  amount: number | null;
+  // Typspezifische Felder (z. B. Vertragspartner/Laufzeit bei Verträgen,
+  // Autor/Zusammenfassung bei Artikeln) — es gibt keine eigene DB-Spalte
+  // pro Feld (siehe CLAUDE.md, Datenmodell-Grundsatz), die Werte werden
+  // im Formular als formatierter Text ins content-Feld übernommen.
+  fields: Record<string, string>;
+}
+
+// Baut aus den typspezifischen Feldern einen lesbaren Text fürs
+// content-Feld, z. B. "Vertragspartner: Stadtwerke\nLaufzeit: 24 Monate".
+export function formatExtractedFields(fields: Record<string, string>): string {
+  return Object.entries(fields)
+    .map(([label, value]) => `${label}: ${value}`)
+    .join("\n");
 }
 
 function fileToBase64(file: File): Promise<string> {

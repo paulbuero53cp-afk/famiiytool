@@ -5,6 +5,7 @@ import {
   decryptSensitiveField,
   deleteDocument,
   extractDocumentMetadata,
+  formatExtractedFields,
   generateDocumentContent,
   getFileUrl,
   getPreferredLlmModel,
@@ -247,8 +248,11 @@ export function Documents({
     setPreferredLlmModel(model);
   }
 
-  // Vorschlag, kein automatisches Speichern — Nutzer sieht Titel/Tags/Datum
-  // im Formular und kann sie vor dem Anlegen noch anpassen oder verwerfen.
+  // Vorschlag, kein automatisches Speichern — Nutzer sieht Titel/Tags/Datum/
+  // Betrag/typspezifische Felder im Formular und kann sie vor dem Anlegen
+  // noch anpassen oder verwerfen. amount wird nur übernommen, wenn das
+  // Betrag-Feld für dieses Modul überhaupt sichtbar ist (showAmount) —
+  // sonst würde ein erkannter Wert unsichtbar mitgespeichert werden.
   async function handleExtractMetadata() {
     if (!file) return;
     setExtracting(true);
@@ -260,6 +264,12 @@ export function Documents({
         setTags((prev) => [...new Set([...prev, ...suggestion.tags])]);
       }
       if (suggestion.dueDate && !dueDateInput) setDueDateInput(suggestion.dueDate);
+      if (showAmount && suggestion.amount !== null && !amountInput) {
+        setAmountInput(String(suggestion.amount));
+      }
+      if (Object.keys(suggestion.fields).length > 0 && !content.trim()) {
+        setContent(formatExtractedFields(suggestion.fields));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Metadaten-Erkennung fehlgeschlagen");
     } finally {
@@ -899,7 +909,7 @@ export function Documents({
               disabled={extracting}
               className="mt-1.5 text-xs text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
             >
-              🔍 {extracting ? "Erkennt Metadaten…" : "Titel/Tags/Datum aus Scan vorschlagen"}
+              🔍 {extracting ? "Erkennt Metadaten…" : "Metadaten aus Scan vorschlagen"}
             </button>
           )}
         </div>

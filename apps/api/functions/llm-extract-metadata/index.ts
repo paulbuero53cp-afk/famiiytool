@@ -2,11 +2,12 @@
 // Einziger Aufrufweg: expliziter Klick "Metadaten aus Scan vorschlagen" im
 // Anlege-Formular (siehe Documents.tsx) — kein automatischer Trigger beim
 // Datei-Upload (siehe /CLAUDE.md, Sicherheitsregel 4). Nimmt ein Foto/Scan
-// (Bild oder PDF) als Base64 entgegen und lässt Claude Vision Titel,
-// passende Tags und ein evtl. erkennbares Fälligkeits-/Ablaufdatum
-// vorschlagen — der Nutzer sieht die Vorschläge nur im Formular und
-// entscheidet selbst, ob/wie er sie übernimmt, es wird nichts automatisch
-// gespeichert.
+// (Bild oder PDF) als Base64 entgegen, lässt Claude Vision zuerst den
+// Dokumenttyp erkennen (Vertrag/Rechnung/Bescheid/Artikel/Sonstiges) und
+// dann typspezifische Felder extrahieren (z. B. Vertragspartner+Laufzeit
+// bei Verträgen, Autor+Zusammenfassung bei Artikeln) — der Nutzer sieht
+// die Vorschläge nur im Formular und entscheidet selbst, ob/wie er sie
+// übernimmt, es wird nichts automatisch gespeichert.
 //
 // Bewusst als EINE Datei gehalten (kein Import aus packages/llm-client),
 // damit sie 1:1 in den Supabase-Dashboard-Function-Editor eingefügt werden
@@ -28,6 +29,19 @@ const ALLOWED_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif
 // lib/modules.tsx) — Claude wird gebeten, sich nach Möglichkeit daran zu
 // orientieren, ist aber nicht strikt darauf beschränkt.
 const SUGGESTED_TAG_HINTS = ["steuern", "versicherung", "grundbuch", "technik", "vertrag", "zaehlerstand"];
+
+// Typspezifische Felder, die je nach erkanntem Dokumenttyp extrahiert
+// werden sollen (siehe Doku-Beispiel im Prompt unten). Es gibt bewusst
+// keine eigene DB-Spalte pro Feld (siehe CLAUDE.md, Datenmodell-Grundsatz)
+// — die Werte landen als formatierter Text im generischen content-Feld,
+// nur amount/dueDate mappen auf die vorhandenen Spalten.
+const DOCUMENT_TYPE_FIELDS: Record<string, string[]> = {
+  vertrag: ["Vertragspartner", "Gegenstand", "Start", "Laufzeit", "Kosten"],
+  rechnung: ["Lieferant", "Leistung", "Betrag"],
+  bescheid: ["Lieferant", "Leistung", "Betrag", "Fälligkeit"],
+  artikel: ["Autor", "Zusammenfassung"],
+  sonstiges: [],
+};
 
 function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = PRICING_PER_MILLION_TOKENS[model];
@@ -65,14 +79,27 @@ async function extractMetadata(
             {
               type: "text",
               text:
-                "Das ist ein gescanntes Haushalts-Dokument (z. B. Vertrag, Rechnung, Versicherungspolice, " +
-                "Steuerbescheid, Zählerstand). Gib GENAU ein JSON-Objekt zurück, ohne Markdown-Codeblock und " +
-                "ohne weiteren Text, mit den Feldern: " +
+                "Analysiere dieses gescannte Dokument. Bestimme zuerst den Dokumenttyp aus dieser Liste: " +
+                `${Object.keys(DOCUMENT_TYPE_FIELDS).join(", ")}. Extrahiere dann je nach Typ folgende Felder ` +
+                "(nur ausfüllen, was im Dokument tatsächlich erkennbar ist, sonst weglassen):\n" +
+                Object.entries(DOCUMENT_TYPE_FIELDS)
+                  .filter(([, fields]) => fields.length > 0)
+                  .map(([type, fields]) => `- ${type}: ${fields.join(", ")}`)
+                  .join("\n") +
+                "\n- sonstiges: keine festen Zusatzfelder, nur Titel/Tags\n\n" +
+                "Gib GENAU ein JSON-Objekt zurück, ohne Markdown-Codeblock und ohne weiteren Text, mit den Feldern: " +
+                `"documentType" (einer der obigen Typen), ` +
                 `"title" (kurzer, prägnanter Titel auf Deutsch), ` +
                 `"tags" (Array mit 1-3 passenden Stichworten, bevorzugt aus [${SUGGESTED_TAG_HINTS.join(", ")}], ` +
                 "aber auch andere treffende Begriffe sind ok), " +
-                '"dueDate" (Fälligkeits- oder Ablaufdatum im Format YYYY-MM-DD, falls im Dokument erkennbar, ' +
-                'sonst null). Beispiel: {"title":"Hausratversicherung Musterversicherung","tags":["versicherung"],"dueDate":"2027-01-15"}',
+                '"dueDate" (Fälligkeits- oder Vertragsablaufdatum im Format YYYY-MM-DD, falls erkennbar, sonst null), ' +
+                '"amount" (Betrag/Kosten als Zahl ohne Währungssymbol, falls erkennbar, sonst null), ' +
+                '"fields" (Objekt mit den oben für den erkannten Typ gelisteten Feldnamen als Keys und den im ' +
+                "Dokument gefundenen Werten als Strings — nur tatsächlich erkannte Felder einschließen, leeres " +
+                "Objekt bei sonstiges oder wenn nichts erkennbar ist). Beispiel: " +
+                '{"documentType":"vertrag","title":"Stromvertrag Stadtwerke","tags":["vertrag"],"dueDate":null,' +
+                '"amount":89.90,"fields":{"Vertragspartner":"Stadtwerke Musterstadt","Gegenstand":"Stromliefervertrag",' +
+                '"Start":"01.03.2026","Laufzeit":"24 Monate","Kosten":"89,90 €/Monat"}}',
             },
           ],
         },
@@ -89,7 +116,14 @@ async function extractMetadata(
   const inputTokens: number = data.usage?.input_tokens ?? 0;
   const outputTokens: number = data.usage?.output_tokens ?? 0;
 
-  let parsed: { title?: string; tags?: string[]; dueDate?: string | null };
+  let parsed: {
+    documentType?: string;
+    title?: string;
+    tags?: string[];
+    dueDate?: string | null;
+    amount?: number | null;
+    fields?: Record<string, string>;
+  };
   try {
     // Claude hält sich meist ans JSON-only-Format, aber zur Sicherheit
     // eventuelle Markdown-Codeblock-Zäune (```json ... ```) entfernen.
@@ -99,10 +133,20 @@ async function extractMetadata(
     throw new Error("Konnte KI-Antwort nicht als JSON lesen");
   }
 
+  const fields =
+    parsed.fields && typeof parsed.fields === "object"
+      ? Object.fromEntries(
+          Object.entries(parsed.fields).filter(([, v]) => typeof v === "string"),
+        )
+      : {};
+
   return {
+    documentType: typeof parsed.documentType === "string" ? parsed.documentType : "sonstiges",
     title: typeof parsed.title === "string" ? parsed.title : "",
     tags: Array.isArray(parsed.tags) ? parsed.tags.filter((t) => typeof t === "string") : [],
     dueDate: typeof parsed.dueDate === "string" ? parsed.dueDate : null,
+    amount: typeof parsed.amount === "number" ? parsed.amount : null,
+    fields,
     model,
     inputTokens,
     outputTokens,
@@ -183,7 +227,15 @@ Deno.serve(async (req) => {
     estimated_cost_usd: result.estimatedCostUsd,
   });
 
-  return new Response(JSON.stringify({ title: result.title, tags: result.tags, dueDate: result.dueDate }), {
-    headers: { ...corsHeaders, "content-type": "application/json" },
-  });
+  return new Response(
+    JSON.stringify({
+      documentType: result.documentType,
+      title: result.title,
+      tags: result.tags,
+      dueDate: result.dueDate,
+      amount: result.amount,
+      fields: result.fields,
+    }),
+    { headers: { ...corsHeaders, "content-type": "application/json" } },
+  );
 });
