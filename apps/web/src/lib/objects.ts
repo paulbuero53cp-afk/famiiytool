@@ -179,6 +179,37 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
   return data as DocumentObject;
 }
 
+export interface ProjectOverviewInput {
+  title: string;
+  content: string;
+  status: string | null;
+  startDate: string | null;
+  dueDate: string | null;
+}
+
+// Schlankes Update nur für die Projekt-Übersicht (Titel/Ziele/Status/
+// Zeitraum) — bewusst NICHT über updateDocument, das immer encrypted_field
+// und tags mitschickt (würde ein evtl. gesetztes sensibles Feld ohne
+// erneute Entschlüsselung überschreiben/löschen). Rührt encrypted_field/
+// tags/project_id/amount gar nicht an.
+export async function updateProjectOverview(objectId: string, input: ProjectOverviewInput): Promise<DocumentObject> {
+  const { data, error } = await supabase
+    .from("objects")
+    .update({
+      title: input.title,
+      content: input.content,
+      status: input.status,
+      start_date: input.startDate,
+      due_date: input.dueDate,
+    })
+    .eq("id", objectId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentObject;
+}
+
 // Kompaktes Update für den Erledigt-Status eines Meilensteins ODER einer
 // Aufgabe (type='task', siehe 0014_project_planning.sql — beide nutzen
 // denselben done-Mechanismus) — eigene Funktion statt updateDocument, weil
