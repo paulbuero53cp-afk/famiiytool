@@ -1,6 +1,8 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
   breakGlassRead,
+  createUser,
+  deleteUser,
   listAccessLogForObject,
   listProfiles,
   listUsageLog,
@@ -10,11 +12,24 @@ import {
   type UsageLogEntry,
 } from "../lib/admin";
 
-export function Admin() {
+interface AdminProps {
+  userId: string;
+}
+
+export function Admin({ userId }: AdminProps) {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [usage, setUsage] = useState<UsageLogEntry[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const [createOpen, setCreateOpen] = useState(false);
+  const [newUserEmail, setNewUserEmail] = useState("");
+  const [newUserPassword, setNewUserPassword] = useState("");
+  const [creatingUser, setCreatingUser] = useState(false);
+
+  const [deleteConfirmFor, setDeleteConfirmFor] = useState<string | null>(null);
+  const [deleteConfirmEmail, setDeleteConfirmEmail] = useState("");
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
 
   const [breakGlassObjectId, setBreakGlassObjectId] = useState("");
   const [breakGlassReason, setBreakGlassReason] = useState("");
@@ -50,6 +65,44 @@ export function Admin() {
     }
   }
 
+  async function handleCreateUser(e: FormEvent) {
+    e.preventDefault();
+    setCreatingUser(true);
+    setError(null);
+    try {
+      await createUser(newUserEmail, newUserPassword);
+      setNewUserEmail("");
+      setNewUserPassword("");
+      setCreateOpen(false);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nutzer konnte nicht angelegt werden");
+    } finally {
+      setCreatingUser(false);
+    }
+  }
+
+  function openDeleteConfirm(profile: Profile) {
+    setDeleteConfirmFor(deleteConfirmFor === profile.id ? null : profile.id);
+    setDeleteConfirmEmail("");
+    setError(null);
+  }
+
+  async function handleDeleteUser(profile: Profile) {
+    setDeletingUserId(profile.id);
+    setError(null);
+    try {
+      await deleteUser(profile.id);
+      setDeleteConfirmFor(null);
+      setDeleteConfirmEmail("");
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Nutzer konnte nicht gelöscht werden");
+    } finally {
+      setDeletingUserId(null);
+    }
+  }
+
   async function handleBreakGlass(e: FormEvent) {
     e.preventDefault();
     setBreakGlassBusy(true);
@@ -76,23 +129,123 @@ export function Admin() {
       {loading && <p className="text-sm text-neutral-500">Lädt…</p>}
 
       <section className="space-y-3">
-        <h2 className="font-display text-2xl">Nutzerverwaltung</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="font-display text-2xl">Nutzerverwaltung</h2>
+          {!createOpen && (
+            <button
+              onClick={() => setCreateOpen(true)}
+              title="Neuen Nutzer anlegen"
+              aria-label="Neuen Nutzer anlegen"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
+            >
+              +
+            </button>
+          )}
+        </div>
+
+        {createOpen && (
+          <form
+            onSubmit={handleCreateUser}
+            className="space-y-2.5 rounded-xl border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuen Nutzer anlegen</h3>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(false)}
+                className="text-xs text-neutral-400 hover:text-neutral-700"
+              >
+                ✕
+              </button>
+            </div>
+            <input
+              type="email"
+              required
+              placeholder="E-Mail"
+              value={newUserEmail}
+              onChange={(e) => setNewUserEmail(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+            />
+            <input
+              type="password"
+              required
+              minLength={8}
+              placeholder="Erstpasswort (mind. 8 Zeichen)"
+              value={newUserPassword}
+              onChange={(e) => setNewUserPassword(e.target.value)}
+              className="w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+            />
+            <p className="text-xs text-neutral-500">
+              Account ist sofort nutzbar (keine Bestätigungsmail) — das Erstpasswort musst du der Person selbst
+              mitteilen.
+            </p>
+            <button
+              type="submit"
+              disabled={creatingUser}
+              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            >
+              {creatingUser ? "Legt an…" : "Anlegen"}
+            </button>
+          </form>
+        )}
+
         <div className="space-y-2">
           {profiles.map((p) => (
             <div
               key={p.id}
-              className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm"
+              className="rounded-xl border border-neutral-200 bg-white p-3 hover:shadow-sm"
             >
-              <span className="text-sm text-neutral-900">{p.email ?? p.id}</span>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">{p.role}</span>
-                <button
-                  onClick={() => handleRoleChange(p, p.role === "admin" ? "user" : "admin")}
-                  className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200"
-                >
-                  {p.role === "admin" ? "Admin entziehen" : "Zu Admin machen"}
-                </button>
+              <div className="flex items-center justify-between">
+                <span className="text-sm text-neutral-900">{p.email ?? p.id}</span>
+                <div className="flex items-center gap-2">
+                  <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">{p.role}</span>
+                  <button
+                    onClick={() => handleRoleChange(p, p.role === "admin" ? "user" : "admin")}
+                    className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200"
+                  >
+                    {p.role === "admin" ? "Admin entziehen" : "Zu Admin machen"}
+                  </button>
+                  <button
+                    onClick={() => openDeleteConfirm(p)}
+                    disabled={p.id === userId}
+                    title={p.id === userId ? "Der eigene Account kann nicht gelöscht werden" : "Nutzer löschen"}
+                    className="rounded-full border border-red-200 px-2.5 py-1 text-xs text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    Löschen
+                  </button>
+                </div>
               </div>
+
+              {deleteConfirmFor === p.id && (
+                <div className="mt-3 space-y-2 border-t border-neutral-200 pt-3">
+                  <p className="text-xs text-red-700">
+                    Löscht den Account <strong>unwiderruflich</strong> inkl. ALLER seiner Daten (Dokumente,
+                    Projekte, Musik, alles). Zum Bestätigen die E-Mail-Adresse <strong>{p.email}</strong> exakt
+                    eintippen.
+                  </p>
+                  <input
+                    value={deleteConfirmEmail}
+                    onChange={(e) => setDeleteConfirmEmail(e.target.value)}
+                    placeholder="E-Mail zur Bestätigung eintippen"
+                    className="w-full rounded-lg border border-red-200 bg-white px-3 py-2 text-sm focus:border-red-500 focus:outline-none"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleDeleteUser(p)}
+                      disabled={deleteConfirmEmail !== p.email || deletingUserId === p.id}
+                      className="rounded-full bg-red-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-40"
+                    >
+                      {deletingUserId === p.id ? "Löscht…" : "Endgültig löschen"}
+                    </button>
+                    <button
+                      onClick={() => setDeleteConfirmFor(null)}
+                      className="text-xs text-neutral-500 underline"
+                    >
+                      Abbrechen
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           ))}
         </div>
