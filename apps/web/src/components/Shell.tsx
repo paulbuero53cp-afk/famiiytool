@@ -204,7 +204,7 @@ export function Shell({ userId }: ShellProps) {
                       <button
                         key={m.id}
                         onClick={() => setActiveModuleId(m.id)}
-                        className="flex flex-col items-center gap-2 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
+                        className="flex flex-col items-center gap-2 rounded-lg border border-neutral-200 bg-white p-4 hover:border-neutral-400 sm:p-6"
                       >
                         <span className="text-3xl">{m.icon}</span>
                         <span className="text-sm">{m.label}</span>

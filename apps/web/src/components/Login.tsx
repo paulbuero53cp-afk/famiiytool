@@ -65,7 +65,7 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-900">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-lg border border-neutral-200 bg-white p-6 shadow-sm space-y-4"
+        className="w-full max-w-sm rounded-lg border border-neutral-200 bg-white p-6 space-y-4"
       >
         <h1 className="text-xl font-semibold">Familientool — {mode === "signIn" ? "Login" : "Registrierung"}</h1>
 

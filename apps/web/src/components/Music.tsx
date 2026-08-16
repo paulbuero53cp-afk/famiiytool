@@ -358,7 +358,7 @@ export function Music({ userId }: MusicProps) {
           {uploadOpen && (
             <form
               onSubmit={handleUpload}
-              className="space-y-2.5 rounded-lg border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+              className="space-y-2.5 rounded-lg border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5"
             >
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-medium uppercase tracking-wide text-neutral-500">MP3 hochladen</h4>
@@ -422,7 +422,7 @@ export function Music({ userId }: MusicProps) {
 
           <div className="space-y-2">
             {tracks.map((track) => (
-              <div key={track.id} className="rounded-lg border border-neutral-200 bg-white p-3.5 hover:shadow-sm">
+              <div key={track.id} className="rounded-lg border border-neutral-200 bg-white p-3.5 hover:border-neutral-400">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-neutral-900">{track.title}</p>
                   <p className="truncate text-sm text-neutral-500">
@@ -514,7 +514,7 @@ export function Music({ userId }: MusicProps) {
             {playlists.map((playlist) => (
               <div
                 key={playlist.id}
-                className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3.5 hover:shadow-sm"
+                className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3.5 hover:border-neutral-400"
               >
                 <button onClick={() => setSelectedPlaylistId(playlist.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate font-medium text-neutral-900">{playlist.title}</p>

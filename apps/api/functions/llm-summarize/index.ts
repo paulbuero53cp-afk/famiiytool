@@ -19,6 +19,11 @@ const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number
   "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
 };
 
+// Nur Modelle aus PRICING_PER_MILLION_TOKENS sind wählbar — verhindert, dass
+// über das model-Feld ein beliebiger String an die Anthropic-API durchgereicht
+// wird, und stellt sicher, dass die Kostenschätzung im Admin-Panel stimmt.
+const ALLOWED_MODELS = Object.keys(PRICING_PER_MILLION_TOKENS);
+
 function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = PRICING_PER_MILLION_TOKENS[model];
   if (!pricing) return 0;
@@ -105,10 +110,14 @@ Deno.serve(async (req) => {
     return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
 
-  const { objectId, text, context } = await req.json();
+  const { objectId, text, context, model } = await req.json();
 
   if (!objectId || !text) {
     return new Response("objectId und text sind Pflichtfelder", { status: 400, headers: corsHeaders });
+  }
+
+  if (model && !ALLOWED_MODELS.includes(model)) {
+    return new Response(`Unbekanntes Modell: ${model}`, { status: 400, headers: corsHeaders });
   }
 
   // Bestätigt implizit die RLS-Sichtbarkeit: schlägt fehl, wenn das Objekt
@@ -123,7 +132,7 @@ Deno.serve(async (req) => {
     return new Response("Objekt nicht gefunden oder kein Zugriff", { status: 404, headers: corsHeaders });
   }
 
-  const result = await summarize(Deno.env.get("ANTHROPIC_API_KEY")!, text, context);
+  const result = await summarize(Deno.env.get("ANTHROPIC_API_KEY")!, text, context, model);
 
   // Service-Role-Client NUR für das Kosten-Log — nicht für Content-Zugriff.
   const serviceClient = createClient(

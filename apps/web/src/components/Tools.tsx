@@ -37,7 +37,7 @@ export function Tools() {
             href={tool.href}
             target="_blank"
             rel="noreferrer"
-            className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-4 hover:shadow-sm"
+            className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-4 hover:border-neutral-400"
           >
             <span className="text-2xl">{tool.icon}</span>
             <span className="font-medium text-neutral-900">{tool.title}</span>

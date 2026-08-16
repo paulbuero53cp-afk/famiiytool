@@ -98,7 +98,7 @@ export function ProjectWizard({ userId, onDone, onCancel }: ProjectWizardProps) 
   const canLeaveStep1 = title.trim().length > 0;
 
   return (
-    <div className="space-y-3 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-4 shadow-sm">
+    <div className="space-y-3 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-4">
       <div className="flex items-center justify-between">
         <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">
           Neues Projekt — Schritt {step} von {STEP_COUNT}
