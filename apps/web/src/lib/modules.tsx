@@ -13,6 +13,7 @@ import { Documents } from "../components/Documents";
 import { Admin } from "../components/Admin";
 import { ProjectWorkspace } from "../components/ProjectWorkspace";
 import { ProjectWizard } from "../components/ProjectWizard";
+import { ProjectTimeline } from "../components/ProjectTimeline";
 import { Music } from "../components/Music";
 import { Tools } from "../components/Tools";
 import { listMyDocuments, type DocumentObject } from "./objects";
@@ -47,14 +48,19 @@ function ProjectsModule({ userId }: { userId: string }) {
   const [openProject, setOpenProject] = useState<DocumentObject | null>(null);
   const [wizardOpen, setWizardOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
-  // Für den Meilenstein-Kurzblick pro Projekt-Karte — Documents.tsx kennt
-  // Meilensteine nicht, daher hier separat geladen und über renderExtra
-  // an die Karte durchgereicht.
+  const [view, setView] = useState<"list" | "timeline">("list");
+  // Für den Meilenstein-Kurzblick pro Projekt-Karte UND die Zeitleisten-
+  // Ansicht — Documents.tsx kennt weder Meilensteine noch die volle
+  // Projekt-Liste (fetcht/filtert intern, gibt nach außen nichts zurück),
+  // daher hier separat geladen.
   const [milestonesByProject, setMilestonesByProject] = useState<Record<string, DocumentObject[]>>({});
+  const [projects, setProjects] = useState<DocumentObject[]>([]);
 
   useEffect(() => {
     listMyDocuments()
       .then((all) => {
+        setProjects(all.filter((d) => d.type === "project"));
+
         const grouped: Record<string, DocumentObject[]> = {};
         for (const d of all) {
           if (d.type !== "milestone" || !d.project_id) continue;
@@ -111,15 +117,38 @@ function ProjectsModule({ userId }: { userId: string }) {
         />
       )}
 
-      <Documents
-        key={refreshKey}
-        userId={userId}
-        objectType="project"
-        hideHeader
-        onOpen={setOpenProject}
-        renderExtra={renderMilestoneSummary}
-        emptyLabel="Noch keine Projekte — leg eins an, z. B. Urlaub, Hausbau oder Masterarbeit."
-      />
+      <div className="flex gap-1">
+        <button
+          onClick={() => setView("list")}
+          className={`rounded-md px-3 py-1.5 text-sm ${
+            view === "list" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
+          }`}
+        >
+          📋 Liste
+        </button>
+        <button
+          onClick={() => setView("timeline")}
+          className={`rounded-md px-3 py-1.5 text-sm ${
+            view === "timeline" ? "bg-neutral-900 text-white" : "text-neutral-600 hover:bg-neutral-100"
+          }`}
+        >
+          📊 Zeitleiste
+        </button>
+      </div>
+
+      {view === "list" ? (
+        <Documents
+          key={refreshKey}
+          userId={userId}
+          objectType="project"
+          hideHeader
+          onOpen={setOpenProject}
+          renderExtra={renderMilestoneSummary}
+          emptyLabel="Noch keine Projekte — leg eins an, z. B. Urlaub, Hausbau oder Masterarbeit."
+        />
+      ) : (
+        <ProjectTimeline projects={projects} onOpen={setOpenProject} />
+      )}
     </div>
   );
 }
