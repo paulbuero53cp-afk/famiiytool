@@ -19,7 +19,16 @@ export function Login() {
     const { data, error: authError } =
       mode === "signIn"
         ? await supabase.auth.signInWithPassword({ email, password })
-        : await supabase.auth.signUp({ email, password });
+        : // emailRedirectTo passt sich automatisch an den aktuellen Origin an
+          // (Produktion vs. lokale Entwicklung) — setzt voraus, dass beide
+          // URLs im Supabase-Dashboard unter Authentication > URL
+          // Configuration > Redirect URLs eingetragen sind, sonst fällt
+          // Supabase auf die dort hinterlegte Site URL zurück.
+          await supabase.auth.signUp({
+            email,
+            password,
+            options: { emailRedirectTo: window.location.origin },
+          });
 
     if (authError) {
       setBusy(false);
