@@ -50,9 +50,11 @@ const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
 const inputClass =
   "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none";
 const actionButtonClass =
-  "inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-200";
+  "inline-flex items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-50";
 const dangerButtonClass =
-  "inline-flex items-center gap-1 rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50";
+  "inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs text-red-700 hover:bg-red-50";
+const primaryButtonClass =
+  "rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50";
 
 export function Documents({
   userId,
@@ -390,7 +392,7 @@ export function Documents({
     return (
       <div
         key={doc.id}
-        className={`rounded-xl border p-3.5 ${
+        className={`rounded-lg border p-3.5 ${
           doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white hover:shadow-sm"
         }`}
       >
@@ -406,10 +408,12 @@ export function Documents({
         {(doc.is_template || doc.owner_id !== userId || (showProjectPicker && projectName(doc.project_id))) && (
           <div className="mt-1 flex flex-wrap items-center gap-1.5">
             {doc.is_template && (
-              <span className="rounded-full bg-indigo-50 px-2 py-0.5 text-xs text-indigo-700">Vorlage</span>
+              <span className="rounded border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600">Vorlage</span>
             )}
             {doc.owner_id !== userId && (
-              <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700">Mit dir geteilt</span>
+              <span className="rounded border border-neutral-300 px-2 py-0.5 text-xs text-neutral-600">
+                Mit dir geteilt
+              </span>
             )}
             {showProjectPicker && projectName(doc.project_id) && (
               <span className="text-xs text-neutral-500">🗂️ {projectName(doc.project_id)}</span>
@@ -422,7 +426,7 @@ export function Documents({
             {doc.tags
               .filter((t) => t !== presetTag)
               .map((tag) => (
-                <span key={tag} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
+                <span key={tag} className="rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-600">
                   {tag}
                 </span>
               ))}
@@ -430,7 +434,7 @@ export function Documents({
         )}
 
         {(doc.content || doc.encrypted_field) && (
-          <div className="mt-3 space-y-1.5 rounded-xl bg-neutral-50 p-2.5">
+          <div className="mt-3 space-y-1.5 rounded-lg bg-neutral-50 p-2.5">
             {doc.content && <p className="text-sm text-neutral-700">{doc.content}</p>}
             {doc.encrypted_field && (
               <p className="text-sm text-emerald-700">
@@ -449,7 +453,7 @@ export function Documents({
           {onOpen && (
             <button
               onClick={() => onOpen(doc)}
-              className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2 py-0.5 text-xs text-white hover:bg-neutral-800"
+              className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-2 py-0.5 text-xs text-white hover:bg-neutral-800"
             >
               📂 Öffnen
             </button>
@@ -572,7 +576,7 @@ export function Documents({
               <button
                 type="submit"
                 disabled={editSaving}
-                className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {editSaving ? "Speichert…" : "Speichern"}
               </button>
@@ -584,7 +588,7 @@ export function Documents({
         )}
 
         {summaries[doc.id] && (
-          <p className="mt-2 rounded-xl bg-emerald-50 p-2 text-sm text-emerald-700">{summaries[doc.id]}</p>
+          <p className="mt-2 rounded-lg bg-emerald-50 p-2 text-sm text-emerald-700">{summaries[doc.id]}</p>
         )}
 
         {shareOpenFor === doc.id && (
@@ -601,7 +605,7 @@ export function Documents({
               <button
                 type="submit"
                 disabled={sharing}
-                className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {sharing ? "…" : "Freigeben"}
               </button>
@@ -635,13 +639,13 @@ export function Documents({
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="font-display text-2xl">{heading}</h2>
+        <h2 className="text-xl font-semibold">{heading}</h2>
         {!createOpen && (
           <button
             onClick={() => setCreateOpen(true)}
             title="Neuer Eintrag"
             aria-label="Neuer Eintrag"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
+            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
           >
             +
           </button>
@@ -651,7 +655,7 @@ export function Documents({
       {createOpen && (
       <form
         onSubmit={handleCreate}
-        className="space-y-2.5 rounded-xl border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+        className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
       >
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
@@ -691,7 +695,7 @@ export function Documents({
                   type="button"
                   onClick={handleGenerate}
                   disabled={aiGenerating || !aiPrompt.trim()}
-                  className="rounded-full bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                  className="rounded-md bg-neutral-900 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
                 >
                   {aiGenerating ? "Generiert…" : "Generieren"}
                 </button>
@@ -770,18 +774,14 @@ export function Documents({
           Als Vorlage speichern
         </label>
 
-        <button
-          type="submit"
-          disabled={saving}
-          className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
-        >
+        <button type="submit" disabled={saving} className={primaryButtonClass}>
           {saving ? "Speichert…" : "Anlegen"}
         </button>
       </form>
       )}
 
       {error && (
-        <p className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">
+        <p className="flex items-start gap-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">
           <span>⚠️</span>
           <span>{error}</span>
         </p>
@@ -792,7 +792,7 @@ export function Documents({
           placeholder="Suche nach Titel oder Inhalt…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-full border border-neutral-300 bg-white px-4 py-2 text-sm focus:border-neutral-900 focus:outline-none"
+          className="w-full rounded-md border border-neutral-300 bg-white px-4 py-2 text-sm focus:border-neutral-900 focus:outline-none"
         />
         {allTags.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -800,8 +800,8 @@ export function Documents({
               <button
                 key={tag}
                 onClick={() => setActiveTag(activeTag === tag ? null : tag)}
-                className={`rounded-full px-2.5 py-0.5 text-xs ${
-                  activeTag === tag ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
+                className={`rounded px-2.5 py-0.5 text-xs ${
+                  activeTag === tag ? "bg-neutral-900 text-white" : "border border-neutral-300 bg-white text-neutral-600"
                 }`}
               >
                 {tag}
@@ -819,7 +819,7 @@ export function Documents({
       {loading && (
         <div className="space-y-3">
           {[0, 1, 2].map((i) => (
-            <div key={i} className="animate-pulse rounded-xl border border-neutral-200 bg-white p-3.5">
+            <div key={i} className="animate-pulse rounded-lg border border-neutral-200 bg-white p-3.5">
               <div className="h-4 w-1/3 rounded bg-neutral-200" />
               <div className="mt-3 h-3 w-2/3 rounded bg-neutral-100" />
               <div className="mt-2 h-3 w-1/2 rounded bg-neutral-100" />

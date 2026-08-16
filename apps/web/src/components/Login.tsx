@@ -65,9 +65,9 @@ export function Login() {
     <div className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-900">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm rounded-2xl border border-neutral-200 bg-white p-6 shadow-sm space-y-4"
+        className="w-full max-w-sm rounded-lg border border-neutral-200 bg-white p-6 shadow-sm space-y-4"
       >
-        <h1 className="font-display text-2xl">Familientool — {mode === "signIn" ? "Login" : "Registrierung"}</h1>
+        <h1 className="text-xl font-semibold">Familientool — {mode === "signIn" ? "Login" : "Registrierung"}</h1>
 
         <div className="space-y-1">
           <label className="block text-sm text-neutral-500">E-Mail</label>
@@ -93,10 +93,10 @@ export function Login() {
         </div>
 
         {error && (
-          <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">{error}</p>
+          <p className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">{error}</p>
         )}
         {info && (
-          <p className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+          <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
             {info}
           </p>
         )}
@@ -104,7 +104,7 @@ export function Login() {
         <button
           type="submit"
           disabled={busy}
-          className="w-full rounded-full bg-neutral-900 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+          className="w-full rounded-md bg-neutral-900 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
         >
           {mode === "signIn" ? "Einloggen" : "Registrieren"}
         </button>
