@@ -2,6 +2,24 @@ import { supabase } from "./supabaseClient";
 import { decryptText, encryptText } from "./crypto";
 import { getEncryptionKey } from "./encryptionSession";
 
+// Muss mit ALLOWED_MODELS in apps/api/functions/llm-generate|llm-summarize
+// und PRICING_PER_MILLION_TOKENS dort übereinstimmen — neues Modell braucht
+// Einträge an allen drei Stellen.
+export const LLM_MODELS: { value: string; label: string }[] = [
+  { value: "claude-haiku-4-5-20251001", label: "Haiku 4.5 — günstig & schnell" },
+  { value: "claude-sonnet-5", label: "Sonnet 5 — Standard" },
+];
+
+const LLM_MODEL_STORAGE_KEY = "familientool-llm-model";
+
+export function getPreferredLlmModel(): string {
+  return localStorage.getItem(LLM_MODEL_STORAGE_KEY) ?? "claude-sonnet-5";
+}
+
+export function setPreferredLlmModel(model: string): void {
+  localStorage.setItem(LLM_MODEL_STORAGE_KEY, model);
+}
+
 export interface DocumentObject {
   id: string;
   owner_id: string;
@@ -358,7 +376,7 @@ export async function revokeShare(objectId: string, userId: string): Promise<voi
   if (error) throw error;
 }
 
-export async function summarizeDocument(objectId: string, text: string): Promise<string> {
+export async function summarizeDocument(objectId: string, text: string, model?: string): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) throw new Error("Nicht eingeloggt");
@@ -370,7 +388,7 @@ export async function summarizeDocument(objectId: string, text: string): Promise
       "content-type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ objectId, text }),
+    body: JSON.stringify({ objectId, text, model }),
   });
 
   if (!response.ok) {
@@ -384,7 +402,7 @@ export async function summarizeDocument(objectId: string, text: string): Promise
 // Spiegelbildlich zu summarizeDocument: aus einem kurzen Prompt wird neuer
 // Dokumentinhalt generiert (siehe apps/api/functions/llm-generate). Kein
 // objectId nötig — das Dokument existiert zu diesem Zeitpunkt noch nicht.
-export async function generateDocumentContent(prompt: string, context?: string): Promise<string> {
+export async function generateDocumentContent(prompt: string, context?: string, model?: string): Promise<string> {
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
   if (!accessToken) throw new Error("Nicht eingeloggt");
@@ -396,7 +414,7 @@ export async function generateDocumentContent(prompt: string, context?: string):
       "content-type": "application/json",
       Authorization: `Bearer ${accessToken}`,
     },
-    body: JSON.stringify({ prompt, context }),
+    body: JSON.stringify({ prompt, context, model }),
   });
 
   if (!response.ok) {

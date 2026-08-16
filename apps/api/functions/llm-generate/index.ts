@@ -22,6 +22,11 @@ const PRICING_PER_MILLION_TOKENS: Record<string, { input: number; output: number
   "claude-haiku-4-5-20251001": { input: 0.8, output: 4 },
 };
 
+// Nur Modelle aus PRICING_PER_MILLION_TOKENS sind wählbar — verhindert, dass
+// über das model-Feld ein beliebiger String an die Anthropic-API durchgereicht
+// wird, und stellt sicher, dass die Kostenschätzung im Admin-Panel stimmt.
+const ALLOWED_MODELS = Object.keys(PRICING_PER_MILLION_TOKENS);
+
 function estimateCostUsd(model: string, inputTokens: number, outputTokens: number): number {
   const pricing = PRICING_PER_MILLION_TOKENS[model];
   if (!pricing) return 0;
@@ -111,13 +116,17 @@ Deno.serve(async (req) => {
     return new Response("Unauthorized", { status: 401, headers: corsHeaders });
   }
 
-  const { prompt, context } = await req.json();
+  const { prompt, context, model } = await req.json();
 
   if (!prompt) {
     return new Response("prompt ist Pflichtfeld", { status: 400, headers: corsHeaders });
   }
 
-  const result = await generate(Deno.env.get("ANTHROPIC_API_KEY")!, prompt, context);
+  if (model && !ALLOWED_MODELS.includes(model)) {
+    return new Response(`Unbekanntes Modell: ${model}`, { status: 400, headers: corsHeaders });
+  }
+
+  const result = await generate(Deno.env.get("ANTHROPIC_API_KEY")!, prompt, context, model);
 
   // Service-Role-Client NUR für das Kosten-Log — object_id ist null, da noch
   // kein Dokument existiert.

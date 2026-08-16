@@ -385,7 +385,7 @@ export function ProjectWorkspace({ userId, project: initialProject, onBack }: Pr
           ) : (
             <form
               onSubmit={handleSaveOverview}
-              className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+              className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5"
             >
               <div>
                 <label className={smallLabelClass}>Titel</label>
@@ -662,7 +662,7 @@ export function ProjectWorkspace({ userId, project: initialProject, onBack }: Pr
                 {foldersHere.map((f) => (
                   <div
                     key={f.id}
-                    className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
+                    className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:border-neutral-400"
                   >
                     <button
                       onClick={() => setFolderPath([...folderPath, f])}
@@ -772,7 +772,7 @@ export function ProjectWorkspace({ userId, project: initialProject, onBack }: Pr
                 {foldersHere.map((f) => (
                   <div
                     key={f.id}
-                    className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
+                    className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:border-neutral-400"
                   >
                     <button onClick={() => setFolderPath([f])} className="flex w-full flex-col items-center gap-1">
                       <span className="text-xl">📁</span>

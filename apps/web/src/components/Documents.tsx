@@ -6,12 +6,15 @@ import {
   deleteDocument,
   generateDocumentContent,
   getFileUrl,
+  getPreferredLlmModel,
   instantiateTemplate,
   listMyDocuments,
   listMyProjects,
   listShares,
+  LLM_MODELS,
   removeFile,
   revokeShare,
+  setPreferredLlmModel,
   shareDocument,
   summarizeDocument,
   updateDocument,
@@ -87,6 +90,7 @@ export function Documents({
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [llmModel, setLlmModel] = useState(getPreferredLlmModel);
 
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
@@ -216,12 +220,17 @@ export function Documents({
       .join("\n\n");
   }
 
+  function handleLlmModelChange(model: string) {
+    setLlmModel(model);
+    setPreferredLlmModel(model);
+  }
+
   async function handleGenerate() {
     if (!aiPrompt.trim()) return;
     setAiGenerating(true);
     setError(null);
     try {
-      const generated = await generateDocumentContent(aiPrompt, buildAiContext());
+      const generated = await generateDocumentContent(aiPrompt, buildAiContext(), llmModel);
       setContent(generated);
       setAiOpen(false);
       setAiPrompt("");
@@ -237,7 +246,7 @@ export function Documents({
     setSummarizing(doc.id);
     setError(null);
     try {
-      const summary = await summarizeDocument(doc.id, doc.content);
+      const summary = await summarizeDocument(doc.id, doc.content, llmModel);
       setSummaries((prev) => ({ ...prev, [doc.id]: summary }));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Zusammenfassung fehlgeschlagen");
@@ -403,7 +412,7 @@ export function Documents({
       <div
         key={doc.id}
         className={`rounded-lg border p-3.5 ${
-          doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white hover:shadow-sm"
+          doc.is_template ? "border-dashed border-neutral-300 bg-neutral-50" : "border-neutral-200 bg-white hover:border-neutral-400"
         }`}
       >
         <div className="flex items-start justify-between gap-3">
@@ -669,7 +678,7 @@ export function Documents({
       {createOpen && (
       <form
         onSubmit={handleCreate}
-        className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+        className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5"
       >
         <div className="flex items-center justify-between">
           <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuer Eintrag</h3>
@@ -704,7 +713,7 @@ export function Documents({
                 rows={2}
                 className={inputClass}
               />
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
                   onClick={handleGenerate}
@@ -713,6 +722,18 @@ export function Documents({
                 >
                   {aiGenerating ? "Generiert…" : "Generieren"}
                 </button>
+                <select
+                  value={llmModel}
+                  onChange={(e) => handleLlmModelChange(e.target.value)}
+                  title="LLM-Modell"
+                  className="rounded-md border border-neutral-300 bg-white px-2 py-1 text-xs text-neutral-700"
+                >
+                  {LLM_MODELS.map((m) => (
+                    <option key={m.value} value={m.value}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
                 <span className="text-xs text-neutral-400">Füllt das Inhalt-Feld, danach weiter editierbar.</span>
               </div>
             </div>

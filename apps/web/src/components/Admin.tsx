@@ -146,7 +146,7 @@ export function Admin({ userId }: AdminProps) {
         {createOpen && (
           <form
             onSubmit={handleCreateUser}
-            className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+            className="space-y-2.5 rounded-lg border-t-2 border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5"
           >
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium uppercase tracking-wide text-neutral-500">Neuen Nutzer anlegen</h3>
@@ -193,7 +193,7 @@ export function Admin({ userId }: AdminProps) {
           {profiles.map((p) => (
             <div
               key={p.id}
-              className="rounded-lg border border-neutral-200 bg-white p-3 hover:shadow-sm"
+              className="rounded-lg border border-neutral-200 bg-white p-3 hover:border-neutral-400"
             >
               <div className="flex items-center justify-between">
                 <span className="text-sm text-neutral-900">{p.email ?? p.id}</span>
@@ -291,7 +291,7 @@ export function Admin({ userId }: AdminProps) {
         </p>
         <form
           onSubmit={handleBreakGlass}
-          className="space-y-2 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm"
+          className="space-y-2 rounded-lg border border-neutral-200 bg-white p-4"
         >
           <input
             placeholder="Objekt-ID"
