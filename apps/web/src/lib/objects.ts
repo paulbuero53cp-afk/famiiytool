@@ -424,3 +424,62 @@ export async function generateDocumentContent(prompt: string, context?: string, 
   const { content } = await response.json();
   return content as string;
 }
+
+const EXTRACTABLE_MEDIA_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+const MAX_EXTRACT_FILE_SIZE = 8 * 1024 * 1024;
+
+export interface ExtractedMetadata {
+  title: string;
+  tags: string[];
+  dueDate: string | null;
+}
+
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      // dataURL hat die Form "data:image/png;base64,AAAA…" — nur der Teil
+      // nach dem Komma geht an die Edge Function.
+      const result = reader.result as string;
+      resolve(result.slice(result.indexOf(",") + 1));
+    };
+    reader.onerror = () => reject(reader.error ?? new Error("Datei konnte nicht gelesen werden"));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Lässt Claude Vision Titel/Tags/Fälligkeitsdatum aus einem Foto/Scan
+// vorschlagen (siehe apps/api/functions/llm-extract-metadata) — nur auf
+// expliziten Klick im Formular, siehe Documents.tsx. Wirft für nicht
+// unterstützte Dateitypen/zu große Dateien clientseitig, um unnötige
+// Anthropic-API-Kosten zu vermeiden.
+export async function extractDocumentMetadata(file: File, model?: string): Promise<ExtractedMetadata> {
+  if (!EXTRACTABLE_MEDIA_TYPES.includes(file.type)) {
+    throw new Error("Metadaten-Erkennung funktioniert nur für Bilder (JPEG/PNG/WebP/GIF) oder PDFs.");
+  }
+  if (file.size > MAX_EXTRACT_FILE_SIZE) {
+    throw new Error("Datei zu groß für Metadaten-Erkennung (max. 8 MB).");
+  }
+
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Nicht eingeloggt");
+
+  const fileData = await fileToBase64(file);
+
+  const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/llm-extract-metadata`;
+  const response = await fetch(functionsUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ fileData, mediaType: file.type, model }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Metadaten-Erkennung fehlgeschlagen: ${await response.text()}`);
+  }
+
+  return (await response.json()) as ExtractedMetadata;
+}

@@ -69,7 +69,7 @@ export function TagInput({ value, onChange, suggestions, placeholder = "Tag eing
       </div>
 
       {showSuggestions && draft.trim() && filteredSuggestions.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg">
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-neutral-300 bg-white">
           {filteredSuggestions.slice(0, 6).map((s) => (
             <button
               key={s}
