@@ -42,6 +42,41 @@ export async function setUserRole(userId: string, role: "admin" | "user"): Promi
   if (error) throw error;
 }
 
+async function callAdminFunction(name: string, body: Record<string, unknown>): Promise<unknown> {
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token;
+  if (!accessToken) throw new Error("Nicht eingeloggt");
+
+  const functionsUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${name}`;
+  const response = await fetch(functionsUrl, {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+  return response.json();
+}
+
+// Legt einen Nutzer-Account direkt an (ohne Selbstregistrierung/Bestätigungs-
+// mail) — nur für Admins, siehe apps/api/functions/admin-create-user.
+export async function createUser(email: string, password: string): Promise<void> {
+  await callAdminFunction("admin-create-user", { email, password });
+}
+
+// Löscht einen Nutzer-Account unwiderruflich inkl. ALLER seiner Objekte
+// (cascade, siehe 0001_init.sql) — nur für Admins, siehe
+// apps/api/functions/admin-delete-user. Die UI muss vor dem Aufruf eine
+// starke Bestätigung einholen (siehe Admin.tsx).
+export async function deleteUser(userId: string): Promise<void> {
+  await callAdminFunction("admin-delete-user", { userId });
+}
+
 export async function listUsageLog(): Promise<UsageLogEntry[]> {
   const { data, error } = await supabase
     .from("llm_usage_log")
