@@ -4,6 +4,7 @@ import {
   createDocument,
   decryptSensitiveField,
   deleteDocument,
+  extractDocumentMetadata,
   generateDocumentContent,
   getFileUrl,
   getPreferredLlmModel,
@@ -55,6 +56,19 @@ interface DocumentsProps {
   // Projekte-Übersicht: Meilenstein-Kurzblick, von außen berechnet statt in
   // der generischen Komponente selbst, die Meilensteine nicht kennt).
   renderExtra?: (doc: DocumentObject) => ReactNode;
+  // Fälligkeits-/Ablaufdatum-Feld im Formular + Badge auf der Karte (z. B.
+  // Haus-Modul: Vertragsablauf, Versicherungs-Fälligkeit). Nutzt due_date,
+  // dasselbe Feld, das Projekte für ihr Enddatum verwenden — es ist pro
+  // type='document' bzw. type='expense' unabhängig davon frei nutzbar.
+  showDueDate?: boolean;
+  // Sortiert die Liste nach due_date aufsteigend (nächste Frist zuerst),
+  // Einträge ohne Datum ans Ende — statt der sonst üblichen created_at-Sortierung.
+  sortByDueDate?: boolean;
+  // Feste Tag-Vorschläge zusätzlich zu den aus vorhandenen Dokumenten
+  // abgeleiteten (z. B. Haus-Kategorien wie "steuern"/"versicherung", die
+  // auch dann vorgeschlagen werden sollen, wenn noch kein Dokument mit
+  // diesem Tag existiert).
+  tagSuggestions?: string[];
 }
 
 const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
@@ -81,6 +95,9 @@ export function Documents({
   onOpen,
   hideHeader = false,
   renderExtra,
+  showDueDate = false,
+  sortByDueDate = false,
+  tagSuggestions = [],
 }: DocumentsProps) {
   const [documents, setDocuments] = useState<DocumentObject[]>([]);
   const [projects, setProjects] = useState<DocumentObject[]>([]);
@@ -99,10 +116,12 @@ export function Documents({
   const [tags, setTags] = useState<string[]>([]);
   const [amountInput, setAmountInput] = useState("");
   const [projectId, setProjectId] = useState("");
+  const [dueDateInput, setDueDateInput] = useState("");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
   const [search, setSearch] = useState("");
   const [activeTag, setActiveTag] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
 
   const [summaries, setSummaries] = useState<Record<string, string>>({});
   const [summarizing, setSummarizing] = useState<string | null>(null);
@@ -119,6 +138,7 @@ export function Documents({
   const [editTags, setEditTags] = useState<string[]>([]);
   const [editAmountInput, setEditAmountInput] = useState("");
   const [editProjectId, setEditProjectId] = useState("");
+  const [editDueDateInput, setEditDueDateInput] = useState("");
   const [editSaving, setEditSaving] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [removingFileId, setRemovingFileId] = useState<string | null>(null);
@@ -185,6 +205,7 @@ export function Documents({
           projectId: lockedProjectId ?? (projectId || null),
           amount: amountInput ? Number(amountInput) : null,
           folderId: folderId ?? null,
+          dueDate: dueDateInput || null,
         },
         userId,
       );
@@ -198,6 +219,7 @@ export function Documents({
       setTags([]);
       setAmountInput("");
       setProjectId("");
+      setDueDateInput("");
       setFile(null);
       setCreateOpen(false);
       await refresh();
@@ -223,6 +245,26 @@ export function Documents({
   function handleLlmModelChange(model: string) {
     setLlmModel(model);
     setPreferredLlmModel(model);
+  }
+
+  // Vorschlag, kein automatisches Speichern — Nutzer sieht Titel/Tags/Datum
+  // im Formular und kann sie vor dem Anlegen noch anpassen oder verwerfen.
+  async function handleExtractMetadata() {
+    if (!file) return;
+    setExtracting(true);
+    setError(null);
+    try {
+      const suggestion = await extractDocumentMetadata(file, llmModel);
+      if (suggestion.title && !title.trim()) setTitle(suggestion.title);
+      if (suggestion.tags.length > 0) {
+        setTags((prev) => [...new Set([...prev, ...suggestion.tags])]);
+      }
+      if (suggestion.dueDate && !dueDateInput) setDueDateInput(suggestion.dueDate);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Metadaten-Erkennung fehlgeschlagen");
+    } finally {
+      setExtracting(false);
+    }
   }
 
   async function handleGenerate() {
@@ -333,6 +375,7 @@ export function Documents({
     setEditTags(doc.tags.filter((t) => t !== presetTag));
     setEditAmountInput(doc.amount !== null ? String(doc.amount) : "");
     setEditProjectId(doc.project_id ?? "");
+    setEditDueDateInput(doc.due_date ?? "");
     setError(null);
   }
 
@@ -350,6 +393,7 @@ export function Documents({
         tags: finalTags,
         projectId: editProjectId || null,
         amount: editAmountInput ? Number(editAmountInput) : null,
+        dueDate: editDueDateInput || null,
       });
       setEditOpenFor(null);
       await refresh();
@@ -384,7 +428,9 @@ export function Documents({
     }
   }
 
-  const allTags = [...new Set(documents.flatMap((doc) => doc.tags))].filter((t) => t !== presetTag).sort();
+  const allTags = [...new Set([...documents.flatMap((doc) => doc.tags), ...tagSuggestions])]
+    .filter((t) => t !== presetTag)
+    .sort();
 
   const filteredDocuments = documents.filter((doc) => {
     const searchLower = search.trim().toLowerCase();
@@ -397,6 +443,10 @@ export function Documents({
     return matchesSearch && matchesPresetTag && matchesTag;
   });
 
+  if (sortByDueDate) {
+    filteredDocuments.sort((a, b) => (a.due_date ?? "9999-99-99").localeCompare(b.due_date ?? "9999-99-99"));
+  }
+
   const realEntries = filteredDocuments.filter((doc) => !doc.is_template);
   const templateEntries = filteredDocuments.filter((doc) => doc.is_template);
 
@@ -405,6 +455,15 @@ export function Documents({
   function projectName(id: string | null): string | null {
     if (!id) return null;
     return projects.find((p) => p.id === id)?.title ?? null;
+  }
+
+  // Für die Fristen-Badge auf der Karte: rot = überfällig, amber = fällig
+  // innerhalb von 30 Tagen, sonst neutral.
+  function dueDateUrgency(dueDate: string): "overdue" | "soon" | "normal" {
+    const diffDays = (new Date(dueDate).getTime() - Date.now()) / (1000 * 60 * 60 * 24);
+    if (diffDays < 0) return "overdue";
+    if (diffDays <= 30) return "soon";
+    return "normal";
   }
 
   function renderCard(doc: DocumentObject) {
@@ -420,6 +479,19 @@ export function Documents({
           <div className="flex shrink-0 items-center gap-2">
             {showAmount && doc.amount !== null && (
               <span className="text-base font-semibold text-emerald-700">{doc.amount.toFixed(2)} €</span>
+            )}
+            {showDueDate && doc.due_date && (
+              <span
+                className={`rounded border px-2 py-0.5 text-xs whitespace-nowrap ${
+                  dueDateUrgency(doc.due_date) === "overdue"
+                    ? "border-red-300 text-red-700"
+                    : dueDateUrgency(doc.due_date) === "soon"
+                      ? "border-amber-300 text-amber-700"
+                      : "border-neutral-300 text-neutral-600"
+                }`}
+              >
+                📅 {new Date(doc.due_date).toLocaleDateString("de-DE")}
+              </span>
             )}
           </div>
         </div>
@@ -587,6 +659,17 @@ export function Documents({
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+            {showDueDate && (
+              <div>
+                <label className={fieldLabelClass}>Fälligkeit / Ablaufdatum</label>
+                <input
+                  type="date"
+                  value={editDueDateInput}
+                  onChange={(e) => setEditDueDateInput(e.target.value)}
+                  className={inputClass}
+                />
               </div>
             )}
             <div>
@@ -771,6 +854,18 @@ export function Documents({
           </div>
         )}
 
+        {showDueDate && (
+          <div>
+            <label className={fieldLabelClass}>Fälligkeit / Ablaufdatum</label>
+            <input
+              type="date"
+              value={dueDateInput}
+              onChange={(e) => setDueDateInput(e.target.value)}
+              className={inputClass}
+            />
+          </div>
+        )}
+
         {showProjectPicker && !lockedProjectId && projects.length > 0 && (
           <div>
             <label className={fieldLabelClass}>Projekt</label>
@@ -797,6 +892,16 @@ export function Documents({
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="w-full text-sm text-neutral-500"
           />
+          {file && ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"].includes(file.type) && (
+            <button
+              type="button"
+              onClick={handleExtractMetadata}
+              disabled={extracting}
+              className="mt-1.5 text-xs text-neutral-500 hover:text-neutral-900 disabled:opacity-50"
+            >
+              🔍 {extracting ? "Erkennt Metadaten…" : "Titel/Tags/Datum aus Scan vorschlagen"}
+            </button>
+          )}
         </div>
 
         <label className="flex items-center gap-2 text-sm text-neutral-700">

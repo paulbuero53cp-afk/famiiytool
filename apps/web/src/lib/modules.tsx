@@ -167,6 +167,11 @@ function FinanceModule({ userId }: { userId: string }) {
   );
 }
 
+// Kategorien als feste Tag-Vorschläge statt eigener Unter-Typen (siehe
+// CLAUDE.md, Datenmodell-Grundsatz) — Steuern/Versicherung/Grundbuch/
+// Technik/Verträge/Zählerstände sind einfach Tags auf type='document'.
+const HOUSE_TAG_SUGGESTIONS = ["steuern", "versicherung", "grundbuch", "technik", "vertrag", "zaehlerstand"];
+
 function HouseModule({ userId }: { userId: string }) {
   return (
     <Documents
@@ -174,7 +179,10 @@ function HouseModule({ userId }: { userId: string }) {
       presetTag="haus"
       heading="Haus-Organisation"
       showProjectPicker
-      emptyLabel='Noch keine Haus-Dokumente — beim Anlegen wird automatisch das Tag „haus" gesetzt.'
+      showDueDate
+      sortByDueDate
+      tagSuggestions={HOUSE_TAG_SUGGESTIONS}
+      emptyLabel='Noch keine Haus-Dokumente — beim Anlegen wird automatisch das Tag „haus" gesetzt. Scan hochladen und "Titel/Tags/Datum vorschlagen" nutzt KI zur Vorausfüllung.'
     />
   );
 }
