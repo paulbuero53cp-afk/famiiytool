@@ -40,11 +40,11 @@ export function TagInput({ value, onChange, suggestions, placeholder = "Tag eing
 
   return (
     <div className="relative">
-      <div className="flex flex-wrap items-center gap-1.5 rounded-full border border-neutral-300 bg-white px-3 py-1.5 focus-within:border-neutral-900">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-md border border-neutral-300 bg-white px-3 py-1.5 focus-within:border-neutral-900">
         {value.map((tag) => (
           <span
             key={tag}
-            className="flex items-center gap-1 rounded-full bg-neutral-100 px-2.5 py-0.5 text-xs text-neutral-700"
+            className="flex items-center gap-1 rounded border border-neutral-200 bg-neutral-50 px-2.5 py-0.5 text-xs text-neutral-700"
           >
             {tag}
             <button
@@ -69,7 +69,7 @@ export function TagInput({ value, onChange, suggestions, placeholder = "Tag eing
       </div>
 
       {showSuggestions && draft.trim() && filteredSuggestions.length > 0 && (
-        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-xl border border-neutral-200 bg-white shadow-lg">
+        <div className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-neutral-200 bg-white shadow-lg">
           {filteredSuggestions.slice(0, 6).map((s) => (
             <button
               key={s}

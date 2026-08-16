@@ -23,9 +23,9 @@ const inputClass =
   "w-full rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-900 focus:outline-none";
 const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
 const actionButtonClass =
-  "inline-flex items-center gap-1 rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-200";
+  "inline-flex items-center gap-1 rounded-md border border-neutral-300 bg-white px-2 py-0.5 text-xs text-neutral-700 hover:bg-neutral-50";
 const dangerButtonClass =
-  "inline-flex items-center gap-1 rounded-full border border-red-200 px-2 py-0.5 text-xs text-red-600 hover:bg-red-50";
+  "inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs text-red-700 hover:bg-red-50";
 
 type Tab = "library" | "playlists";
 
@@ -286,7 +286,7 @@ export function Music({ userId }: MusicProps) {
           <button
             type="submit"
             disabled={sharing}
-            className="rounded-full bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="rounded-md bg-neutral-900 px-3 py-1.5 text-xs font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
           >
             {sharing ? "…" : "Freigeben"}
           </button>
@@ -311,7 +311,7 @@ export function Music({ userId }: MusicProps) {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 pb-4">
-      <h2 className="font-display text-2xl">Musik</h2>
+      <h2 className="text-xl font-semibold">Musik</h2>
 
       <div className="flex gap-1">
         <button
@@ -319,7 +319,7 @@ export function Music({ userId }: MusicProps) {
             setTab("library");
             setSelectedPlaylistId(null);
           }}
-          className={`rounded-full px-3 py-1.5 text-sm ${
+          className={`rounded-md px-3 py-1.5 text-sm ${
             tab === "library" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
           }`}
         >
@@ -327,7 +327,7 @@ export function Music({ userId }: MusicProps) {
         </button>
         <button
           onClick={() => setTab("playlists")}
-          className={`rounded-full px-3 py-1.5 text-sm ${
+          className={`rounded-md px-3 py-1.5 text-sm ${
             tab === "playlists" ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
           }`}
         >
@@ -335,7 +335,7 @@ export function Music({ userId }: MusicProps) {
         </button>
       </div>
 
-      {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       {tab === "library" && (
         <div className="space-y-3">
@@ -348,7 +348,7 @@ export function Music({ userId }: MusicProps) {
                 onClick={() => setUploadOpen(true)}
                 title="MP3 hochladen"
                 aria-label="MP3 hochladen"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
               >
                 +
               </button>
@@ -358,7 +358,7 @@ export function Music({ userId }: MusicProps) {
           {uploadOpen && (
             <form
               onSubmit={handleUpload}
-              className="space-y-2.5 rounded-xl border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
+              className="space-y-2.5 rounded-lg border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5 shadow-sm"
             >
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-medium uppercase tracking-wide text-neutral-500">MP3 hochladen</h4>
@@ -410,7 +410,7 @@ export function Music({ userId }: MusicProps) {
               <button
                 type="submit"
                 disabled={uploading}
-                className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {uploading ? "Lädt hoch…" : "Hochladen"}
               </button>
@@ -422,7 +422,7 @@ export function Music({ userId }: MusicProps) {
 
           <div className="space-y-2">
             {tracks.map((track) => (
-              <div key={track.id} className="rounded-xl border border-neutral-200 bg-white p-3.5 hover:shadow-sm">
+              <div key={track.id} className="rounded-lg border border-neutral-200 bg-white p-3.5 hover:shadow-sm">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-neutral-900">{track.title}</p>
                   <p className="truncate text-sm text-neutral-500">
@@ -432,7 +432,7 @@ export function Music({ userId }: MusicProps) {
                 {track.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
                     {track.tags.map((tag) => (
-                      <span key={tag} className="rounded-full bg-neutral-100 px-2 py-0.5 text-xs text-neutral-700">
+                      <span key={tag} className="rounded border border-neutral-200 bg-neutral-50 px-2 py-0.5 text-xs text-neutral-600">
                         {tag}
                       </span>
                     ))}
@@ -441,7 +441,7 @@ export function Music({ userId }: MusicProps) {
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
                     onClick={() => playTrack(track, tracks)}
-                    className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-2.5 py-1 text-xs text-white hover:bg-neutral-800"
+                    className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-2.5 py-1 text-xs text-white hover:bg-neutral-800"
                   >
                     ▶ Abspielen
                   </button>
@@ -470,7 +470,7 @@ export function Music({ userId }: MusicProps) {
                 onClick={() => setPlaylistFormOpen(true)}
                 title="Neue Playlist"
                 aria-label="Neue Playlist"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-neutral-900 text-lg leading-none text-white hover:bg-neutral-800"
               >
                 +
               </button>
@@ -480,7 +480,7 @@ export function Music({ userId }: MusicProps) {
           {playlistFormOpen && (
             <form
               onSubmit={handleCreatePlaylist}
-              className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-2.5"
+              className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-2.5"
             >
               <div className="min-w-[10rem] flex-1">
                 <label className={fieldLabelClass}>Name</label>
@@ -494,7 +494,7 @@ export function Music({ userId }: MusicProps) {
               <button
                 type="submit"
                 disabled={playlistSaving}
-                className="rounded-full bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
               >
                 {playlistSaving ? "…" : "Anlegen"}
               </button>
@@ -514,7 +514,7 @@ export function Music({ userId }: MusicProps) {
             {playlists.map((playlist) => (
               <div
                 key={playlist.id}
-                className="flex items-center justify-between rounded-xl border border-neutral-200 bg-white p-3.5 hover:shadow-sm"
+                className="flex items-center justify-between rounded-lg border border-neutral-200 bg-white p-3.5 hover:shadow-sm"
               >
                 <button onClick={() => setSelectedPlaylistId(playlist.id)} className="min-w-0 flex-1 text-left">
                   <p className="truncate font-medium text-neutral-900">{playlist.title}</p>
@@ -547,11 +547,11 @@ export function Music({ userId }: MusicProps) {
                 ← Playlists
               </button>
               <div className="flex items-center justify-between">
-                <h3 className="font-display text-lg">{selectedPlaylist.title}</h3>
+                <h3 className="text-base font-semibold">{selectedPlaylist.title}</h3>
                 {plTracks.length > 0 && (
                   <button
                     onClick={() => playTrack(plTracks[0], plTracks)}
-                    className="inline-flex items-center gap-1 rounded-full bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-800"
+                    className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-3 py-1.5 text-sm text-white hover:bg-neutral-800"
                   >
                     ▶ Playlist abspielen
                   </button>

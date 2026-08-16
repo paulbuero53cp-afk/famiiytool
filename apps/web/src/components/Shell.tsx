@@ -81,7 +81,7 @@ export function Shell({ userId }: ShellProps) {
     <PlayerProvider>
     <div className="min-h-screen bg-neutral-50 text-neutral-900">
       <div className="flex items-center justify-between border-b border-neutral-200 bg-white px-4 py-3 sm:px-6">
-        <h1 className="font-display text-lg sm:text-xl">Familientool</h1>
+        <h1 className="text-base font-semibold sm:text-lg">Familientool</h1>
         <div className="flex items-center gap-3 sm:gap-4">
           <button
             onClick={toggleLayout}
@@ -132,17 +132,17 @@ export function Shell({ userId }: ShellProps) {
             <button
               type="submit"
               disabled={pwSaving}
-              className="rounded-full bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {pwSaving ? "Ändert…" : "Passwort ändern"}
             </button>
             {pwInfo && (
-              <p className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
+              <p className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-sm text-emerald-700">
                 {pwInfo}
               </p>
             )}
             {pwError && (
-              <p className="rounded-full border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">
+              <p className="rounded-md border border-red-200 bg-red-50 px-3 py-1.5 text-sm text-red-700">
                 {pwError}
               </p>
             )}
@@ -168,7 +168,7 @@ export function Shell({ userId }: ShellProps) {
                   <button
                     key={m.id}
                     onClick={() => setActiveModuleId(m.id)}
-                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-left text-sm sm:w-full ${
+                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-left text-sm sm:w-full ${
                       activeModuleId === m.id
                         ? "bg-white text-neutral-900"
                         : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
@@ -204,7 +204,7 @@ export function Shell({ userId }: ShellProps) {
                       <button
                         key={m.id}
                         onClick={() => setActiveModuleId(m.id)}
-                        className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
+                        className="flex flex-col items-center gap-2 rounded-lg border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
                       >
                         <span className="text-3xl">{m.icon}</span>
                         <span className="text-sm">{m.label}</span>

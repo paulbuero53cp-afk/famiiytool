@@ -25,7 +25,7 @@ const tools: Tool[] = [
 export function Tools() {
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <h2 className="font-display text-2xl">Tools</h2>
+      <h2 className="text-xl font-semibold">Tools</h2>
       <p className="text-sm text-neutral-500">
         Eigenständige Werkzeuge ohne Datenbank-Anbindung — Dateien werden nur im Browser verarbeitet, nichts wird
         gespeichert oder hochgeladen.
@@ -37,7 +37,7 @@ export function Tools() {
             href={tool.href}
             target="_blank"
             rel="noreferrer"
-            className="flex flex-col gap-2 rounded-xl border border-neutral-200 bg-white p-4 hover:shadow-sm"
+            className="flex flex-col gap-2 rounded-lg border border-neutral-200 bg-white p-4 hover:shadow-sm"
           >
             <span className="text-2xl">{tool.icon}</span>
             <span className="font-medium text-neutral-900">{tool.title}</span>

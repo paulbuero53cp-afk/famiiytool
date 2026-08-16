@@ -191,14 +191,14 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
           ))}
         </nav>
 
-        {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+        {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
         {foldersHere.length > 0 && (
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3">
             {foldersHere.map((f) => (
               <div
                 key={f.id}
-                className="group relative rounded-xl border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
+                className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
               >
                 <button
                   onClick={() => setFolderPath([...folderPath, f])}
@@ -224,7 +224,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
           {!folderFormOpen && (
             <button
               onClick={() => setFolderFormOpen(true)}
-              className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200"
+              className="rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
             >
               ➕ Ordner
             </button>
@@ -234,7 +234,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
         {folderFormOpen && (
           <form
             onSubmit={handleCreateFolder}
-            className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-2.5"
+            className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-2.5"
           >
             <div className="min-w-[10rem] flex-1">
               <label className={smallLabelClass}>Ordnername</label>
@@ -248,7 +248,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
             <button
               type="submit"
               disabled={folderSaving}
-              className="rounded-full bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {folderSaving ? "…" : "Anlegen"}
             </button>
@@ -276,19 +276,19 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
         <button onClick={onBack} className="text-sm text-neutral-500 underline">
           ← Zur Projektübersicht
         </button>
-        <h2 className="mt-2 font-display text-2xl">{project.title}</h2>
+        <h2 className="mt-2 text-xl font-semibold">{project.title}</h2>
         {project.content && <p className="mt-1 text-sm text-neutral-600">{project.content}</p>}
       </div>
 
-      {error && <p className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
+      {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
       <section className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-lg">Meilensteine</h3>
+          <h3 className="text-base font-semibold">Meilensteine</h3>
           {!milestoneFormOpen && (
             <button
               onClick={() => setMilestoneFormOpen(true)}
-              className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200"
+              className="rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
             >
               ➕ Meilenstein
             </button>
@@ -298,7 +298,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
         {milestoneFormOpen && (
           <form
             onSubmit={handleCreateMilestone}
-            className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-2.5"
+            className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-2.5"
           >
             <div className="min-w-[10rem] flex-1">
               <label className={smallLabelClass}>Titel</label>
@@ -321,7 +321,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
             <button
               type="submit"
               disabled={milestoneSaving}
-              className="rounded-full bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {milestoneSaving ? "…" : "Anlegen"}
             </button>
@@ -367,8 +367,8 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
       </section>
 
       {expenseCount > 0 && (
-        <section className="rounded-xl border border-neutral-200 bg-white p-3.5">
-          <h3 className="font-display text-lg">Ausgaben</h3>
+        <section className="rounded-lg border border-neutral-200 bg-white p-3.5">
+          <h3 className="text-base font-semibold">Ausgaben</h3>
           <p className="mt-1 text-sm text-neutral-600">
             {expenseCount} {expenseCount === 1 ? "Eintrag" : "Einträge"}, Summe:{" "}
             <span className="font-medium text-emerald-700">{expenseSum.toFixed(2)} €</span>
@@ -379,11 +379,11 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
 
       <section className="space-y-2.5">
         <div className="flex items-center justify-between">
-          <h3 className="font-display text-lg">Ordner</h3>
+          <h3 className="text-base font-semibold">Ordner</h3>
           {!folderFormOpen && (
             <button
               onClick={() => setFolderFormOpen(true)}
-              className="rounded-full bg-neutral-100 px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-200"
+              className="rounded-md border border-neutral-300 bg-white px-2.5 py-1 text-xs text-neutral-700 hover:bg-neutral-50"
             >
               ➕ Ordner
             </button>
@@ -393,7 +393,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
         {folderFormOpen && (
           <form
             onSubmit={handleCreateFolder}
-            className="flex flex-wrap items-end gap-2 rounded-xl border border-neutral-200 bg-white p-2.5"
+            className="flex flex-wrap items-end gap-2 rounded-lg border border-neutral-200 bg-white p-2.5"
           >
             <div className="min-w-[10rem] flex-1">
               <label className={smallLabelClass}>Ordnername</label>
@@ -407,7 +407,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
             <button
               type="submit"
               disabled={folderSaving}
-              className="rounded-full bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+              className="rounded-md bg-neutral-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
             >
               {folderSaving ? "…" : "Anlegen"}
             </button>
@@ -423,7 +423,7 @@ export function ProjectWorkspace({ userId, project, onBack }: ProjectWorkspacePr
             {foldersHere.map((f) => (
               <div
                 key={f.id}
-                className="group relative rounded-xl border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
+                className="group relative rounded-lg border border-neutral-200 bg-white p-3.5 text-center hover:shadow-sm"
               >
                 <button onClick={() => setFolderPath([f])} className="flex w-full flex-col items-center gap-1">
                   <span className="text-xl">📁</span>
