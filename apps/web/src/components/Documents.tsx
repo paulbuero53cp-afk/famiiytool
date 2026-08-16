@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import {
   attachFile,
   createDocument,
@@ -44,6 +44,14 @@ interface DocumentsProps {
   // Zeigt pro Karte einen zusätzlichen "Öffnen"-Button (aktuell nur für die
   // Projekte-Übersicht, die damit in den Projekt-Workspace wechselt).
   onOpen?: (doc: DocumentObject) => void;
+  // Blendet Überschrift + Anlege-Bereich komplett aus — für Module, die ihre
+  // eigene Kopfzeile/ihren eigenen Anlege-Flow rendern (siehe ProjectsModule
+  // in lib/modules.tsx mit ProjectWizard statt dem generischen Formular).
+  hideHeader?: boolean;
+  // Zusätzlicher, frei gestaltbarer Inhalt pro Karte (aktuell nur für die
+  // Projekte-Übersicht: Meilenstein-Kurzblick, von außen berechnet statt in
+  // der generischen Komponente selbst, die Meilensteine nicht kennt).
+  renderExtra?: (doc: DocumentObject) => ReactNode;
 }
 
 const fieldLabelClass = "block text-xs font-medium text-neutral-500 mb-1";
@@ -68,6 +76,8 @@ export function Documents({
   lockedProjectId,
   folderId,
   onOpen,
+  hideHeader = false,
+  renderExtra,
 }: DocumentsProps) {
   const [documents, setDocuments] = useState<DocumentObject[]>([]);
   const [projects, setProjects] = useState<DocumentObject[]>([]);
@@ -449,7 +459,9 @@ export function Documents({
           </div>
         )}
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        {renderExtra?.(doc)}
+
+        <div className="mt-3 flex flex-nowrap gap-2 overflow-x-auto pb-0.5">
           {onOpen && (
             <button
               onClick={() => onOpen(doc)}
@@ -638,6 +650,8 @@ export function Documents({
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
+      {!hideHeader && (
+      <>
       <div className="flex items-center justify-between">
         <h2 className="text-xl font-semibold">{heading}</h2>
         {!createOpen && (
@@ -778,6 +792,8 @@ export function Documents({
           {saving ? "Speichert…" : "Anlegen"}
         </button>
       </form>
+      )}
+      </>
       )}
 
       {error && (

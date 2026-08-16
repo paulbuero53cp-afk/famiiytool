@@ -25,7 +25,7 @@ const primaryButtonClass =
 
 type Tab = "overview" | "milestones" | "documents" | "costs";
 
-const STATUS_OPTIONS: { value: string; label: string }[] = [
+export const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "geplant", label: "Geplant" },
   { value: "laeuft", label: "Läuft" },
   { value: "pausiert", label: "Pausiert" },
