@@ -267,7 +267,7 @@ export function Documents({
       if (showAmount && suggestion.amount !== null && !amountInput) {
         setAmountInput(String(suggestion.amount));
       }
-      if (Object.keys(suggestion.fields).length > 0 && !content.trim()) {
+      if (Object.keys(suggestion.fields).length > 0) {
         setContent(formatExtractedFields(suggestion.fields));
       }
     } catch (err) {
