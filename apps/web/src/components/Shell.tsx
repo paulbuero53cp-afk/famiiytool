@@ -2,7 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { changePassword, clearEncryptionKey } from "../lib/encryptionSession";
 import { isCurrentUserAdmin } from "../lib/admin";
-import { modules } from "../lib/modules";
+import { modules, MODULE_CATEGORY, TOOLS_CATEGORY } from "../lib/modules";
 import { PlayerProvider } from "../lib/player";
 import { MusicPlayerBar } from "./MusicPlayerBar";
 
@@ -67,6 +67,15 @@ export function Shell({ userId }: ShellProps) {
 
   const visibleModules = modules.filter((m) => !m.adminOnly || isAdmin);
   const ActiveComponent = visibleModules.find((m) => m.id === activeModuleId)?.component;
+  // Feste Kategorie-Reihenfolge statt Array-Position, damit "Module" nicht
+  // durch "Tools" auseinandergerissen wird (Admin steht z. B. hinter Tools
+  // in der Registry, gehört aber zu "Module").
+  const groupedModules = [MODULE_CATEGORY, TOOLS_CATEGORY]
+    .map((category) => ({
+      category,
+      items: visibleModules.filter((m) => (m.category ?? MODULE_CATEGORY) === category),
+    }))
+    .filter((g) => g.items.length > 0);
 
   return (
     <PlayerProvider>
@@ -146,20 +155,30 @@ export function Shell({ userId }: ShellProps) {
           {/* Auf Mobile: horizontal scrollbare Pill-Leiste oben statt fester
               192px-Sidebar, die auf schmalen Screens fast die Hälfte des
               Inhalts wegnehmen würde. Ab sm: wieder die klassische Sidebar. */}
-          <nav className="flex shrink-0 gap-1 overflow-x-auto bg-neutral-900 p-2 sm:w-48 sm:flex-col sm:space-y-1 sm:overflow-visible sm:p-4">
-            {visibleModules.map((m) => (
-              <button
-                key={m.id}
-                onClick={() => setActiveModuleId(m.id)}
-                className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-left text-sm sm:w-full ${
-                  activeModuleId === m.id
-                    ? "bg-white text-neutral-900"
-                    : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
-                }`}
-              >
-                <span>{m.icon}</span>
-                {m.label}
-              </button>
+          <nav className="flex shrink-0 gap-1 overflow-x-auto bg-neutral-900 p-2 sm:w-48 sm:flex-col sm:gap-0 sm:space-y-1 sm:overflow-visible sm:p-4">
+            {groupedModules.map((group, i) => (
+              <div key={group.category} className="flex shrink-0 items-center gap-1 sm:contents">
+                {i > 0 && <span className="h-6 w-px shrink-0 bg-neutral-700 sm:hidden" aria-hidden />}
+                {i > 0 && (
+                  <p className="hidden pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-neutral-500 sm:block">
+                    {group.category}
+                  </p>
+                )}
+                {group.items.map((m) => (
+                  <button
+                    key={m.id}
+                    onClick={() => setActiveModuleId(m.id)}
+                    className={`flex shrink-0 items-center gap-2 whitespace-nowrap rounded-full px-3 py-2 text-left text-sm sm:w-full ${
+                      activeModuleId === m.id
+                        ? "bg-white text-neutral-900"
+                        : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
+                    }`}
+                  >
+                    <span>{m.icon}</span>
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             ))}
           </nav>
           <main className="min-w-0 flex-1 px-4 pt-4 pb-28 sm:px-6 sm:pt-6">
@@ -176,16 +195,23 @@ export function Shell({ userId }: ShellProps) {
               <ActiveComponent userId={userId} />
             </div>
           ) : (
-            <div className="mx-auto grid max-w-2xl grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
-              {visibleModules.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => setActiveModuleId(m.id)}
-                  className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
-                >
-                  <span className="text-3xl">{m.icon}</span>
-                  <span className="text-sm">{m.label}</span>
-                </button>
+            <div className="mx-auto max-w-2xl space-y-6">
+              {groupedModules.map((group) => (
+                <div key={group.category} className="space-y-2">
+                  <p className="text-xs font-medium uppercase tracking-wide text-neutral-400">{group.category}</p>
+                  <div className="grid grid-cols-2 gap-3 sm:gap-4 sm:grid-cols-3">
+                    {group.items.map((m) => (
+                      <button
+                        key={m.id}
+                        onClick={() => setActiveModuleId(m.id)}
+                        className="flex flex-col items-center gap-2 rounded-2xl border border-neutral-200 bg-white p-4 shadow-sm hover:shadow-md sm:p-6"
+                      >
+                        <span className="text-3xl">{m.icon}</span>
+                        <span className="text-sm">{m.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           )}
