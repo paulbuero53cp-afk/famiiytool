@@ -37,6 +37,15 @@ export interface DocumentObject {
   // Primär für type='playlist' — geordnetes Array von Track-IDs, kein
   // Join-Table (siehe 0013_music.sql).
   track_ids: string[];
+  // Siehe 0014_project_planning.sql. status: primär für type='project'
+  // ('geplant'|'laeuft'|'pausiert'|'abgeschlossen'). start_date: Projektbeginn
+  // (due_date wird für Projekte als Ende wiederverwendet). parent_id: für
+  // type='task' — verweist auf den übergeordneten Meilenstein.
+  // linked_document_id: optionale Verknüpfung zu einem Projekt-Dokument.
+  status: string | null;
+  start_date: string | null;
+  parent_id: string | null;
+  linked_document_id: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -54,6 +63,10 @@ export interface NewDocumentInput {
   dueDate?: string | null;
   artist?: string | null;
   album?: string | null;
+  status?: string | null;
+  startDate?: string | null;
+  parentId?: string | null;
+  linkedDocumentId?: string | null;
 }
 
 export async function listMyDocuments(): Promise<DocumentObject[]> {
@@ -105,6 +118,10 @@ export async function createDocument(input: NewDocumentInput, ownerId: string): 
       due_date: input.dueDate ?? null,
       ...(input.artist !== undefined ? { artist: input.artist } : {}),
       ...(input.album !== undefined ? { album: input.album } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.startDate !== undefined ? { start_date: input.startDate } : {}),
+      ...(input.parentId !== undefined ? { parent_id: input.parentId } : {}),
+      ...(input.linkedDocumentId !== undefined ? { linked_document_id: input.linkedDocumentId } : {}),
     })
     .select()
     .single();
@@ -123,6 +140,9 @@ export interface UpdateDocumentInput {
   dueDate?: string | null;
   artist?: string | null;
   album?: string | null;
+  status?: string | null;
+  startDate?: string | null;
+  linkedDocumentId?: string | null;
 }
 
 export async function updateDocument(objectId: string, input: UpdateDocumentInput): Promise<DocumentObject> {
@@ -147,6 +167,9 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
       ...(input.dueDate !== undefined ? { due_date: input.dueDate } : {}),
       ...(input.artist !== undefined ? { artist: input.artist } : {}),
       ...(input.album !== undefined ? { album: input.album } : {}),
+      ...(input.status !== undefined ? { status: input.status } : {}),
+      ...(input.startDate !== undefined ? { start_date: input.startDate } : {}),
+      ...(input.linkedDocumentId !== undefined ? { linked_document_id: input.linkedDocumentId } : {}),
     })
     .eq("id", objectId)
     .select()
@@ -156,9 +179,10 @@ export async function updateDocument(objectId: string, input: UpdateDocumentInpu
   return data as DocumentObject;
 }
 
-// Kompaktes Update für den Erledigt-Status eines Meilensteins — eigene
-// Funktion statt updateDocument, weil eine Checkbox nicht Titel/Inhalt/Tags
-// im Formular mitschleppen soll.
+// Kompaktes Update für den Erledigt-Status eines Meilensteins ODER einer
+// Aufgabe (type='task', siehe 0014_project_planning.sql — beide nutzen
+// denselben done-Mechanismus) — eigene Funktion statt updateDocument, weil
+// eine Checkbox nicht Titel/Inhalt/Tags im Formular mitschleppen soll.
 export async function setMilestoneDone(objectId: string, done: boolean): Promise<void> {
   const { error } = await supabase.from("objects").update({ done }).eq("id", objectId);
   if (error) throw error;

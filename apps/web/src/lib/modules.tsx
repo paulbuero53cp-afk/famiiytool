@@ -13,7 +13,13 @@ import { Documents } from "../components/Documents";
 import { Admin } from "../components/Admin";
 import { ProjectWorkspace } from "../components/ProjectWorkspace";
 import { Music } from "../components/Music";
+import { Tools } from "../components/Tools";
 import type { DocumentObject } from "./objects";
+
+// Module ohne explizite category laufen in der Navigation unter "Module"
+// (siehe Shell.tsx, das nach category gruppiert).
+export const MODULE_CATEGORY = "Module";
+export const TOOLS_CATEGORY = "Tools";
 
 export interface ModuleDefinition {
   id: string;
@@ -21,6 +27,7 @@ export interface ModuleDefinition {
   icon: string;
   component: ComponentType<{ userId: string }>;
   adminOnly?: boolean;
+  category?: string;
 }
 
 // Projekte-Liste ist der Einstiegspunkt; ein Klick auf "Öffnen" wechselt in
@@ -88,5 +95,6 @@ export const modules: ModuleDefinition[] = [
   { id: "house", label: "Haus", icon: "🏠", component: HouseModule },
   { id: "school", label: "Schulhelfer", icon: "🎒", component: SchoolModule },
   { id: "music", label: "Musik", icon: "🎵", component: Music },
+  { id: "tools", label: "Tools", icon: "🧰", component: Tools, category: TOOLS_CATEGORY },
   { id: "admin", label: "Admin", icon: "⚙️", component: Admin, adminOnly: true },
 ];
