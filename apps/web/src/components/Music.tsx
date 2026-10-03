@@ -13,6 +13,7 @@ import {
   type ShareEntry,
 } from "../lib/objects";
 import { usePlayer } from "../lib/player";
+import { shareTrackFile } from "../lib/shareFile";
 import { TagInput } from "./TagInput";
 
 interface MusicProps {
@@ -57,6 +58,8 @@ export function Music({ userId }: MusicProps) {
   const [shareEmail, setShareEmail] = useState("");
   const [sharing, setSharing] = useState(false);
   const [shares, setShares] = useState<Record<string, ShareEntry[]>>({});
+  const [sendingId, setSendingId] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
   async function refresh() {
     setLoading(true);
@@ -141,6 +144,21 @@ export function Music({ userId }: MusicProps) {
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
+    }
+  }
+
+  async function handleSendTrack(track: DocumentObject) {
+    setSendingId(track.id);
+    setError(null);
+    setNotice(null);
+    try {
+      const result = await shareTrackFile(track);
+      if (result === "downloaded")
+        setNotice("Teilen als Anhang wird hier nicht unterstützt — die MP3 wurde heruntergeladen.");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Senden fehlgeschlagen");
+    } finally {
+      setSendingId(null);
     }
   }
 
@@ -337,6 +355,8 @@ export function Music({ userId }: MusicProps) {
 
       {error && <p className="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</p>}
 
+      {notice && <p className="rounded-lg border border-neutral-200 bg-neutral-50 p-3 text-sm text-neutral-700">{notice}</p>}
+
       {tab === "library" && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
@@ -445,8 +465,15 @@ export function Music({ userId }: MusicProps) {
                   >
                     ▶ Abspielen
                   </button>
+                  <button
+                    onClick={() => handleSendTrack(track)}
+                    disabled={sendingId === track.id}
+                    className={`${actionButtonClass} disabled:opacity-50`}
+                  >
+                    {sendingId === track.id ? "…" : "📤 Senden"}
+                  </button>
                   <button onClick={() => openShare(track.id)} className={actionButtonClass}>
-                    🔗 Teilen
+                    🔗 Familie
                   </button>
                   <button onClick={() => handleDeleteTrack(track)} className={dangerButtonClass}>
                     🗑️ Löschen
