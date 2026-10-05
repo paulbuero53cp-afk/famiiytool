@@ -9,6 +9,7 @@ import {
   revokeShare,
   shareDocument,
   updatePlaylistTracks,
+  updateTrackMetadata,
   type DocumentObject,
   type ShareEntry,
 } from "../lib/objects";
@@ -29,6 +30,13 @@ const dangerButtonClass =
   "inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs text-red-700 hover:bg-red-50";
 
 type Tab = "library" | "playlists";
+type SortKey = "title" | "genre";
+
+const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
+
+function genreOf(track: DocumentObject): string {
+  return track.tags[0] ?? "";
+}
 
 export function Music({ userId }: MusicProps) {
   const { playTrack } = usePlayer();
@@ -58,6 +66,16 @@ export function Music({ userId }: MusicProps) {
   const [shareEmail, setShareEmail] = useState("");
   const [sharing, setSharing] = useState(false);
   const [shares, setShares] = useState<Record<string, ShareEntry[]>>({});
+  const [sortKey, setSortKey] = useState<SortKey>("title");
+  const [sortDir, setSortDir] = useState<1 | -1>(1);
+
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editTitle, setEditTitle] = useState("");
+  const [editArtist, setEditArtist] = useState("");
+  const [editAlbum, setEditAlbum] = useState("");
+  const [editGenres, setEditGenres] = useState<string[]>([]);
+  const [editSaving, setEditSaving] = useState(false);
+
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
@@ -146,6 +164,56 @@ export function Music({ userId }: MusicProps) {
       setError(err instanceof Error ? err.message : "Löschen fehlgeschlagen");
     }
   }
+
+  function startEdit(track: DocumentObject) {
+    setEditingId(track.id);
+    setEditTitle(track.title);
+    setEditArtist(track.artist ?? "");
+    setEditAlbum(track.album ?? "");
+    setEditGenres(track.tags);
+  }
+
+  async function handleSaveEdit(e: FormEvent) {
+    e.preventDefault();
+    if (!editingId) return;
+    setEditSaving(true);
+    setError(null);
+    try {
+      await updateTrackMetadata(editingId, {
+        title: editTitle,
+        artist: editArtist || null,
+        album: editAlbum || null,
+        tags: editGenres,
+      });
+      setEditingId(null);
+      await refresh();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Speichern fehlgeschlagen");
+    } finally {
+      setEditSaving(false);
+    }
+  }
+
+  function toggleSort(key: SortKey) {
+    if (sortKey === key) setSortDir((d) => (d === 1 ? -1 : 1));
+    else {
+      setSortKey(key);
+      setSortDir(1);
+    }
+  }
+
+  // Sortierung nur für die Anzeige; die Abspiel-Queue folgt der sichtbaren Reihenfolge.
+  // Tracks ohne Genre stehen bei "Genre" immer am Ende, Titel dient als Tie-Breaker.
+  const sortedTracks = [...tracks].sort((a, b) => {
+    if (sortKey === "genre") {
+      const ga = genreOf(a);
+      const gb = genreOf(b);
+      if (!ga !== !gb) return ga ? -1 : 1;
+      const c = collator.compare(ga, gb);
+      if (c !== 0) return c * sortDir;
+    }
+    return collator.compare(a.title, b.title) * (sortKey === "title" ? sortDir : 1);
+  });
 
   async function handleSendTrack(track: DocumentObject) {
     setSendingId(track.id);
@@ -375,6 +443,24 @@ export function Music({ userId }: MusicProps) {
             )}
           </div>
 
+          {tracks.length > 1 && (
+            <div className="flex items-center gap-1 text-xs text-neutral-500">
+              <span>Sortieren:</span>
+              {(["title", "genre"] as const).map((key) => (
+                <button
+                  key={key}
+                  onClick={() => toggleSort(key)}
+                  className={`rounded-md px-2 py-1 ${
+                    sortKey === key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
+                  }`}
+                >
+                  {key === "title" ? "Name" : "Genre"}
+                  {sortKey === key && (sortDir === 1 ? " ↑" : " ↓")}
+                </button>
+              ))}
+            </div>
+          )}
+
           {uploadOpen && (
             <form
               onSubmit={handleUpload}
@@ -441,7 +527,50 @@ export function Music({ userId }: MusicProps) {
           {!loading && tracks.length === 0 && <p className="text-sm text-neutral-500">Noch keine Tracks hochgeladen.</p>}
 
           <div className="space-y-2">
-            {tracks.map((track) => (
+            {sortedTracks.map((track) =>
+              editingId === track.id ? (
+                <form
+                  key={track.id}
+                  onSubmit={handleSaveEdit}
+                  className="space-y-2.5 rounded-lg border-t border-t-neutral-900 border-x border-b border-neutral-200 bg-white p-3.5"
+                >
+                  <div>
+                    <label className={fieldLabelClass}>Titel</label>
+                    <input required value={editTitle} onChange={(e) => setEditTitle(e.target.value)} className={inputClass} />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={fieldLabelClass}>Interpret</label>
+                      <input value={editArtist} onChange={(e) => setEditArtist(e.target.value)} className={inputClass} />
+                    </div>
+                    <div>
+                      <label className={fieldLabelClass}>Album</label>
+                      <input value={editAlbum} onChange={(e) => setEditAlbum(e.target.value)} className={inputClass} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className={fieldLabelClass}>Genre</label>
+                    <TagInput
+                      value={editGenres}
+                      onChange={setEditGenres}
+                      suggestions={[...new Set(tracks.flatMap((t) => t.tags))]}
+                      placeholder="Genre eingeben und Enter drücken"
+                    />
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="submit"
+                      disabled={editSaving}
+                      className="rounded-md bg-neutral-900 px-4 py-2 text-sm font-medium text-white hover:bg-neutral-800 disabled:opacity-50"
+                    >
+                      {editSaving ? "Speichert…" : "Speichern"}
+                    </button>
+                    <button type="button" onClick={() => setEditingId(null)} className="text-xs text-neutral-500 underline">
+                      Abbrechen
+                    </button>
+                  </div>
+                </form>
+              ) : (
               <div key={track.id} className="rounded-lg border border-neutral-200 bg-white p-3.5 hover:border-neutral-400">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-neutral-900">{track.title}</p>
@@ -460,7 +589,7 @@ export function Music({ userId }: MusicProps) {
                 )}
                 <div className="mt-3 flex flex-wrap gap-2">
                   <button
-                    onClick={() => playTrack(track, tracks)}
+                    onClick={() => playTrack(track, sortedTracks)}
                     className="inline-flex items-center gap-1 rounded-md bg-neutral-900 px-2.5 py-1 text-xs text-white hover:bg-neutral-800"
                   >
                     ▶ Abspielen
@@ -475,13 +604,17 @@ export function Music({ userId }: MusicProps) {
                   <button onClick={() => openShare(track.id)} className={actionButtonClass}>
                     🔗 Familie
                   </button>
+                  <button onClick={() => startEdit(track)} className={actionButtonClass}>
+                    ✏️ Bearbeiten
+                  </button>
                   <button onClick={() => handleDeleteTrack(track)} className={dangerButtonClass}>
                     🗑️ Löschen
                   </button>
                 </div>
                 {renderShareBlock(track.id)}
               </div>
-            ))}
+              ),
+            )}
           </div>
         </div>
       )}
