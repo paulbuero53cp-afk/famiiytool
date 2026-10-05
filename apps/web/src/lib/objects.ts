@@ -228,6 +228,27 @@ export async function updateProjectOverview(objectId: string, input: ProjectOver
   return data as DocumentObject;
 }
 
+// Track-Metadaten bearbeiten — bewusst NICHT über updateDocument (siehe
+// Hinweis bei updateProjectOverview): rührt nur title/artist/album/tags an.
+export interface TrackMetadataInput {
+  title: string;
+  artist: string | null;
+  album: string | null;
+  tags: string[];
+}
+
+export async function updateTrackMetadata(objectId: string, input: TrackMetadataInput): Promise<DocumentObject> {
+  const { data, error } = await supabase
+    .from("objects")
+    .update({ title: input.title, artist: input.artist, album: input.album, tags: input.tags })
+    .eq("id", objectId)
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data as DocumentObject;
+}
+
 // Kompaktes Update für den Erledigt-Status eines Meilensteins ODER einer
 // Aufgabe (type='task', siehe 0014_project_planning.sql — beide nutzen
 // denselben done-Mechanismus) — eigene Funktion statt updateDocument, weil
