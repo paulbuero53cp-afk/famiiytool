@@ -30,7 +30,9 @@ const dangerButtonClass =
   "inline-flex items-center gap-1 rounded-md border border-red-300 bg-white px-2 py-0.5 text-xs text-red-700 hover:bg-red-50";
 
 type Tab = "library" | "playlists";
-type SortKey = "title" | "genre";
+type SortKey = "title" | "artist" | "genre";
+
+const SORT_LABELS: Record<SortKey, string> = { title: "Name", artist: "Interpret", genre: "Genre" };
 
 const collator = new Intl.Collator("de", { sensitivity: "base", numeric: true });
 
@@ -203,13 +205,13 @@ export function Music({ userId }: MusicProps) {
   }
 
   // Sortierung nur für die Anzeige; die Abspiel-Queue folgt der sichtbaren Reihenfolge.
-  // Tracks ohne Genre stehen bei "Genre" immer am Ende, Titel dient als Tie-Breaker.
+  // Tracks ohne Genre/Interpret stehen bei "Genre" immer am Ende, Titel dient als Tie-Breaker.
   const sortedTracks = [...tracks].sort((a, b) => {
-    if (sortKey === "genre") {
-      const ga = genreOf(a);
-      const gb = genreOf(b);
-      if (!ga !== !gb) return ga ? -1 : 1;
-      const c = collator.compare(ga, gb);
+    if (sortKey !== "title") {
+      const va = sortKey === "genre" ? genreOf(a) : (a.artist ?? "");
+      const vb = sortKey === "genre" ? genreOf(b) : (b.artist ?? "");
+      if (!va !== !vb) return va ? -1 : 1;
+      const c = collator.compare(va, vb);
       if (c !== 0) return c * sortDir;
     }
     return collator.compare(a.title, b.title) * (sortKey === "title" ? sortDir : 1);
@@ -446,7 +448,7 @@ export function Music({ userId }: MusicProps) {
           {tracks.length > 1 && (
             <div className="flex items-center gap-1 text-xs text-neutral-500">
               <span>Sortieren:</span>
-              {(["title", "genre"] as const).map((key) => (
+              {(["title", "artist", "genre"] as const).map((key) => (
                 <button
                   key={key}
                   onClick={() => toggleSort(key)}
@@ -454,7 +456,7 @@ export function Music({ userId }: MusicProps) {
                     sortKey === key ? "bg-neutral-900 text-white" : "bg-neutral-100 text-neutral-700"
                   }`}
                 >
-                  {key === "title" ? "Name" : "Genre"}
+                  {SORT_LABELS[key]}
                   {sortKey === key && (sortDir === 1 ? " ↑" : " ↓")}
                 </button>
               ))}
@@ -574,9 +576,8 @@ export function Music({ userId }: MusicProps) {
               <div key={track.id} className="rounded-lg border border-neutral-200 bg-white p-3.5 hover:border-neutral-400">
                 <div className="min-w-0">
                   <p className="truncate font-medium text-neutral-900">{track.title}</p>
-                  <p className="truncate text-sm text-neutral-500">
-                    {[track.artist, track.album].filter(Boolean).join(" — ") || "Unbekannt"}
-                  </p>
+                  <p className="truncate text-sm text-neutral-700">{track.artist || "Unbekannter Interpret"}</p>
+                  {track.album && <p className="truncate text-xs text-neutral-500">{track.album}</p>}
                 </div>
                 {track.tags.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1">
